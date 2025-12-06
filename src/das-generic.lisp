@@ -5,9 +5,9 @@
             /\___/\
             )     (
            =\     /=                  if this code is not work, i dont know who wrote this code
-             )   (                    Copyright © 2017,2024  @vlad-km
+             )   (                    Copyright © 2017,2025  @vlad-km
             /     \                   2017, Original https://github.com/vlad-km/dasgen
-            )     (                   2024, Code redesign
+            )     (                   2025, Code redesign
            /       \                  Electron >= electron@21.2.2
            \       /                  JSCL >= version 0.8.2  
       jgs   \__ __/
@@ -17,13 +17,48 @@
               \)
 |#
 
-;;;
-;;; This file is part of the "DAS" package
-;;; Copyright © 2017 Vladimir Mezentsev
-;;;
-;;; DASGEN - simple implementation of Generic function for JSCL Moren Edition.
-;;;
-;;;
+
+(defun %das-struct-generator (kind options slots)
+    (let* ((constructor (cadr (assoc :constructor options)))
+           (opt-key (cadr (assoc :form options)))
+           (key-names (mapcar (lambda (x) (if (consp x) (car x) x)) slots))
+           (obj-keys (mapcar (lambda (x) (let ((y (string-downcase (symbol-name x)))) (list 'list y x))) key-names))
+           (option (if opt-key opt-key '&optional))
+           (maker)
+           (makname (if constructor
+                        (intern (symbol-name constructor))
+                        (intern (jscl::concat "MAKE-" (symbol-name `,kind)))))
+           (getter)
+           (position 0)
+           (q))
+      (unless (jscl::memq option '(&key &optional)) (error "Something went wrong: ~a." options))
+      (setq maker
+            `(defun ,makname (,option ,@slots)
+               (let (({} (ffi:new)))
+                 (dolist (it (list ,@obj-keys)) (ffi:setprop ({} (car it)) (cadr it))) {} )))
+      (dolist (it obj-keys)
+        ;; obj-keys -> ((list name key)*)
+        ;;(print (list :get-set :it it :cadr-name (cadr it) :caddr-sym (caddr it)))
+        (setq getter (intern (jscl::concat (symbol-name kind) "-" (symbol-name (caddr it)))))
+        (push `(defun ,getter ({})(ffi:getprop {} ,(cadr it))) q)
+        (push `(defun (setf ,getter) (value storage)
+                 (ffi:setprop (storage ,(cadr it)) value) value)
+              q))
+      (values maker (reverse q))))
+
+
+(defmacro structure (name-options &rest slots)
+  (let* ((name-options (jscl::ensure-list name-options))
+         (name (car name-options))
+         (options (rest name-options)))
+    (multiple-value-bind (maker accessors) (%das-struct-generator name options slots)
+      `(progn
+         ,maker
+         ,@accessors))))
+
+
+
+
 
 
 ;;; all generic store
