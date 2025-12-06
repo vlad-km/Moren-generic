@@ -1,0 +1,19 @@
+[0.0.2] 2024-02-23  @vlad-km
+	* %nc - fixed incorrect name conversion, make-obj - fixed wrong message, added aliase name 'CREATE'
+
+[0.0.2] 2024-02-21  @vlad-km
+
+	* added file package.lisp - for initialize packages :ffi and :number
+	* file number.lisp - code cleanup
+	* file number.lisp - added function (number:new value) constructor for <JS-object value> with prototypes
+	* package name changed to :numbers
+	* comments correction
+	* file ffi.lisp - code cleanup, added `@` and `@@` macros
+ 
+[0.0.1] 2024-02-04  @vlad-km
+
+	* added file number.lisp package-name :number, for working with JS floating-point numbers
+
+[0.0.1] 2024-02-02  @vlad-km
+
+	* Initial
