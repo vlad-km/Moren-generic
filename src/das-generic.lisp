@@ -49,7 +49,10 @@
             q))
     (values maker (reverse q))))
 
-
+;;; note: for structure slot name's with "-"
+;;;       add-sym: (setprop ({} "add-sym") t)
+;;;                js: {}.add-sym wrong name
+;;;                    {}['add-sym'] 
 (defmacro @structure (name-options &rest slots)
   (let* ((name-options (jscl::ensure-list name-options))
          (name (car name-options))
