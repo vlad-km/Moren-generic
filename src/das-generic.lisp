@@ -182,9 +182,10 @@
   (let ((count 0))
     (dolist (slot lambda-list)
       (cond ((atomp slot)
-             (if (find slot *das-gf-mask-stop-tokens*) (return-from das/lambda-counter count)
+             (if (find slot *das-gf-mask-stop-tokens*)
+                 (return-from das/lambda-counter count)
                  (incf count)) )
-            (t (error (concat "Dont recognized expr " slot))))
+            (t (error (concat "Dont recognized expr ~a" slot))))
       count)))
 
 ;;; very simple specialize parser
