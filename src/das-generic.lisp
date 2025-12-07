@@ -75,21 +75,22 @@
 
 
 ;;; return gf descriptor from global table
-;;; or error
-;;; fast
 (defun das/gf-get-for (name)
-    (let ((g (gethash name *das-gfd*)))
-        (if g
-            g
-            (error "Generic ~a not found" name))))
+  (let ((g (gethash name *das-gfd*)))
+    (unless g (error "Generic ~a not found" name))
+    g))
 
 
-
-;;;
 ;;; DAS GF descriptor
-;;;
+(@structure (das-gf (:form &key))
+            name  arglist lambda-len
+            lambda-mask   mask-len
+            rest-count    optional-count
+            key-count     specialite
+            methods )
 
 ;;; make descriptor as vector with type-kid and data store
+#+nil
 (defun make-das-gf (&key name arglist lambda-len lambda-mask  mask-len rest-count
                       optional-count key-count specialite methods)
     (vector (cons 'structure 'das-gf)
@@ -105,7 +106,7 @@
             methods))
 
 
-(defmacro dasgen-proto-generic (name location)
+#+nil(defmacro dasgen-proto-generic (name location)
     (let* ((getter (intern (symbol-name name)))
            (setter (intern (concat "SET-" (string getter)))))
         `(progn
@@ -116,7 +117,8 @@
                  (storage-vector-set obj ,location value))
              (defsetf ,getter ,setter) )))
 
-
+#+nil
+(progn
 ;;;; accessor's read/write
 (dasgen-proto-generic das-gf-name 1)
 (dasgen-proto-generic das-gf-arglist 2)
@@ -128,7 +130,7 @@
 (dasgen-proto-generic das-gf-key-count 8)
 (dasgen-proto-generic das-gf-specialite 9)
 (dasgen-proto-generic das-gf-methods 10)
-
+)
 
 
 ;;;
