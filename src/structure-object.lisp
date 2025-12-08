@@ -16,6 +16,10 @@
               \)
 |#
 
+;;;
+;;; Structure type Object. Prototype
+;;; It's no better than other struct types. It's a pure JS object. It can be useful in combination with FFI:
+;;; seal/frozen/defprop.
 
 
 ;;; Perf test: (time (dotimes (i 10000000) (struct-read) (struct-write)))
@@ -23,7 +27,7 @@
 ;;; (defstruct (:type list))      2.364 sec
 ;;; (@struct)                     4.966 sec
 
-
+;;; stucrure without copier/predicate/ it's a pure JS object.
 (defun %das-struct-generator (kind options slots)
   (let* ((constructor (cadr (assoc :constructor options)))
          (opt-key (cadr (assoc :form options)))
