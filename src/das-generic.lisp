@@ -18,6 +18,12 @@
 |#
 
 
+;;; Perf test: (time (dotimes (i 10000000) (struct-read) (struct-write)))
+;;; (defstruct (:type vector))    0.865 sec
+;;; (defstruct (:type list))      2.364 sec
+;;; (@struct)                     4.966 sec
+
+
 (defun %das-struct-generator (kind options slots)
   (let* ((constructor (cadr (assoc :constructor options)))
          (opt-key (cadr (assoc :form options)))
@@ -37,11 +43,9 @@
              (let (({} (ffi:new)))
                (dolist (it (list ,@obj-keys)) (ffi:setprop ({} (car it)) (cadr it)))
                (ffi:setprop ({} "__type__") "structure")
-               (ffi:setprop ({} "__type_name__" (string-downcase (symbol-name ,kind))))
+               (ffi:setprop ({} "__type_name__") (string-downcase (symbol-name ',kind)))
                {} )))
     (dolist (it obj-keys)
-      ;; obj-keys -> ((list name key)*)
-      ;;(print (list :get-set :it it :cadr-name (cadr it) :caddr-sym (caddr it)))
       (setq getter (intern (jscl::concat (symbol-name kind) "-" (symbol-name (caddr it)))))
       (push `(defun ,getter ({})(ffi:getprop {} ,(cadr it))) q)
       (push `(defun (setf ,getter) (value storage)
@@ -82,10 +86,17 @@
 
 
 ;;; DAS GF descriptor
+#+nil
 (@structure (das-gf (:form &key))
             name  arglist lambda-len  lambda-mask   mask-len
             rest-count optional-count  key-count specialite
             methods )
+
+(defstruct (das-gf (:type vector) :named)
+            name  arglist lambda-len  lambda-mask   mask-len
+            rest-count optional-count  key-count specialite
+            methods )
+
 
 ;;; make descriptor as vector with type-kid and data store
 #+nil
@@ -134,10 +145,17 @@
 
 ;;; generic as function
 
+#+nil
 (@struct (das-gf-method (:form &key))
          name lambda-len lambda-mask mask-len
          lambda-vars rest-count  optional-count  key-count fn primary
          around before after)
+
+(defstruct (das-gf-method (:type vector) named)
+         name lambda-len lambda-mask mask-len
+         lambda-vars rest-count  optional-count  key-count fn primary
+         around before after)
+
 
 #+nil(defun make-das-gf-method (&key name lambda-len lambda-mask mask-len
                              lambda-vars rest-count  optional-count  key-count fn)
@@ -248,8 +266,7 @@
          (optional  (position '&optional lambda-list))
          (key  (position '&key lambda-list)))
     (labels ((%counter (pos)
-               (cond (pos
-                      (das/gf-optionals-counter (subseq lambda-list (1+ pos) len)))
+               (cond (pos  (das/gf-optionals-counter (subseq lambda-list (1+ pos) len)))
                      (t 0))))
       (values (%counter rest) (%counter optional) (%counter key)))))
 
