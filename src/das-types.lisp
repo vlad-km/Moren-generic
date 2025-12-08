@@ -5,36 +5,24 @@
             /\___/\
             )     (
            =\     /=                  if this code is not work, i dont know who wrote this code
-             )   (                    Copyright © 2017,2024  @vlad-km
+             )   (                    Copyright © 2017,2025  @vlad-km
             /     \                   2017, Original https://github.com/vlad-km/dasgen
-            )     (                   2024, Code redesign
+            )     (                   2025, Code redesign
            /       \                  Electron >= electron@21.2.2
            \       /                  JSCL >= version 0.8.2  
       jgs   \__ __/
                ))
-              //
+              //                      NOTE: This code is as ancient as mammoth shit.
              ((
               \)
 |#
 
-;;;
-;;; This file is part of the "DAS" package
-;;; Copyright © 2017 Vladimir Mezentsev
-;;;
+;;; DAS TYPES.  Very simple types system
 
 
-;;;
-;;; DAS TYPES
-;;; Very simple types system
-;;;
-
-
-;;;
 ;;; TYpe definition structure
-;;;
-;;; typedef structure storage-vector release
-;;;
 
+#|
 ;;; constructor
 
 (defun make-das-typedef (&key type supertype predicate class)
@@ -69,8 +57,13 @@
     ;;(unless (das-typedef-p x)
     ;;    (error "The object `~S' is not of type `~S'" x "DAS-TYPEDEF"))
     (storage-vector-ref x 4))
+|#
 
 
+(defstruct (das-typedef (:type vector) :named) type supertype predicate class)
+
+
+#|
 ;;; accessors setf expander
 
 (define-setf-expander das-typedef-type (x)
@@ -112,37 +105,31 @@
                 (list g!new-value)
                 `(storage-vector-set ,g!object 4 ,g!new-value)
                 `(storage-vector-ref ,g!object 4))))
-
-;;;
-;;; Global type store
-;;;
-(defparameter *das-types* (make-hash-table :test #'equal))
+|#
 
 
-;;;
-;;; Store type definition
-;;;
+;;; DAS local  type's hashtable
+
+(defvarr *das-types* nil)
+(setq *das-types* (make-hash-table :test #'equal))
+
 
 (export '(das/def-type))
 (defun das/def-type (&rest typedef)
-    ;;(print (list 'def-type (car typedef) (cadr typedef) (caddr typedef)))
-    (setf (gethash (car typedef) *das-types*)
-          (make-das-typedef :type (car typedef)
-                            :predicate (cadr typedef)
-                            :supertype (caddr typedef)
-                            :class (cadddr typedef))))
+  (setf (gethash (car typedef) *das-types*)
+        (make-das-typedef :type (car typedef)
+                          :predicate (cadr typedef)
+                          :supertype (caddr typedef)
+                          :class (cadddr typedef))))
 
 
 
-;;;
 ;;; Find deftype for symbol type
-;;; (das/find-typedef symbol) => das-typedef
-;;;
 (export '(das/find-typedef))
 
 (defun das/find-typedef (type)
-    (let ((ok (gethash type *das-types*)))
-        (if ok ok (error "~a not type name" type))))
+  (let ((ok (gethash type *das-types*)))
+    (if ok ok (error "~a not type name" type))))
 
 
 
@@ -155,32 +142,31 @@
 ;;;    (car ht) = hash-table
 ;;;    (length ht) = 3
 ;;;    (cadr ht) = function
-;;;
 
 (defun das/hash-table-p (value)
-    (and (consp value)
-         (eq (car value) 'hash-table)
-         (= (length value) 3)
-         (functionp (cadr value)) ) )
+  (and (consp value)
+       (eq (car value) 'hash-table)
+       (= (length value) 3)
+       (functionp (cadr value)) ) )
 
 
 (defun das/standard-object-p (obj)
-    (and (storage-vector-p obj)
-         (> (length obj) 0)
-         (consp (storage-vector-ref obj 0))
-         (= (length (storage-vector-ref obj 0)) 2) ))
+  (and (storage-vector-p obj)
+       (> (length obj) 0)
+       (consp (storage-vector-ref obj 0))
+       (= (length (storage-vector-ref obj 0)) 2) ))
 
 
 (defun das/standard-object-p (obj)
-    (and (storage-vector-p obj)
-         (> (length obj) 0)
-         (consp (storage-vector-ref obj 0))
-         (member (car (storage-vector-ref obj 0)) '(structure instance))
-         t ))
+  (and (storage-vector-p obj)
+       (> (length obj) 0)
+       (consp (storage-vector-ref obj 0))
+       (member (car (storage-vector-ref obj 0)) '(structure instance))
+       t ))
 
-
+;;; NOTE: WHAT IS ?
 (defun das/standard-object-type-kid (obj)
-    (storage-vector-ref obj 0))
+  (storage-vector-ref obj 0))
 
 
 ;;; JSCL compile features
@@ -214,24 +200,8 @@
 ;;; integer        number
 ;;; hash-table     t
 ;;;
-;;; standard-object             t
-;;; metaobject                  standard-object
-;;; specializer                 metaobject
-;;; method                      metaobject
-;;; slot-definition             metaobject
-;;; class                       specializer
-;;; standard-class              class
-;;; instance                    standard-class
-;;; builtin-class               class
-;;; structure-class             class
-;;; structure                   structure-class
-;;; standard-method             method
-;;; standard-accessor           standard-method
-;;; standard-slot-definition    slot-definition
-;;; direct-slot-definition      slot-definition
-;;; effective-slot-definition   slot-definition
-;;;
 
+;;; todo: fix it
 (defparameter *das-basic-types*
   '((hash-table das/hash-table-p t)
     (number das/numberp t)
@@ -255,64 +225,64 @@
 
 (map 'nil
      (lambda (typedef)
-         (setf (gethash (car typedef) *das-types*)
-               (make-das-typedef :type (car typedef)
-                                 :predicate (cadr typedef)
-                                 :supertype (ensure-list (caddr typedef))
-                                 :class (cadddr typedef)))) *das-basic-types*)
+       (setf (gethash (car typedef) *das-types*)
+             (make-das-typedef :type (car typedef)
+                               :predicate (cadr typedef)
+                               :supertype (ensure-list (caddr typedef))
+                               :class (cadddr typedef)))) *das-basic-types*)
 
-;;;
 ;;; Some das-type-of
-;;;
+;;; todo: Rename -> the-type-of
+;;; todo: Fix it
 (defun das/type-of (value)
-    (unless value
-        (return-from das/type-of 'null))
-    (cond
-      ((null value) 'null)
-      ((eql value t) 'boolean)
-      ((integerp value) 'integer)
-      ((floatp value) 'float)
-      ((stringp value) 'string)
-      ((functionp value) 'function)
-      ((keywordp value) 'keyword)
-      ((symbolp value) 'symbol)
-      ;;((consp value) 'cons)
-      ;;((keywordp value) 'keyword)
-      ((characterp value) 'character)
-      ;; hash-table
-      ((das/hash-table-p value)
-       'hash-table)
-      ((consp value) 'cons)
-      ((das/standard-object-p value)
-       (cdr (das/standard-object-type-kid value)))
-      ;; (sequence (make-array '(2 2))) => nil
-      ;; (sequence (make-array '(1))) => t
-      ;; (sequence (vector 0)) => t
-      ;; (sequence #()) => t
-      ((sequencep value)
-       'sequence)
-      ;; (vectorp (make-array 1)) => t
-      ;; (vectorp (make-array '(1))) => t
-      ;; (vectorp (make-array '(1 2))) => nil
-      ;; (vectorp (vector 0)) => t
-      ;; (vector #()) => t
-      ;; unreacable with suuperclass sequence
-      ((vectorp value) 'vector)
-      ;; (make-array '(2 2))
-      ((arrayp value) 'array)
-      (t (error "wtf ? ~a" value)) ))
+  (unless value
+    (return-from das/type-of 'null))
+  (cond
+    ((null value) 'null)
+    ((eql value t) 'boolean)
+    ((integerp value) 'integer)
+    ((floatp value) 'float)
+    ((stringp value) 'string)
+    ((functionp value) 'function)
+    ((keywordp value) 'keyword)
+    ((symbolp value) 'symbol)
+    ;;((consp value) 'cons)
+    ;;((keywordp value) 'keyword)
+    ((characterp value) 'character)
+    ;; hash-table
+    ((das/hash-table-p value)
+     'hash-table)
+    ((consp value) 'cons)
+    ((das/standard-object-p value)
+     (cdr (das/standard-object-type-kid value)))
+    ;; (sequence (make-array '(2 2))) => nil
+    ;; (sequence (make-array '(1))) => t
+    ;; (sequence (vector 0)) => t
+    ;; (sequence #()) => t
+    ((sequencep value)
+     'sequence)
+    ;; (vectorp (make-array 1)) => t
+    ;; (vectorp (make-array '(1))) => t
+    ;; (vectorp (make-array '(1 2))) => nil
+    ;; (vectorp (vector 0)) => t
+    ;; (vector #()) => t
+    ;; unreacable with suuperclass sequence
+    ((vectorp value) 'vector)
+    ;; (make-array '(2 2))
+    ((arrayp value) 'array)
+    (t (error "wtf ? ~a" value)) ))
 
 
 
 
 ;;;
 ;;; class-of
-;;;
+;;; NOTE: ???
 
 (export '(das/class-of))
 
 (defun das/class-of (type)
-    (das-typedef-class (das/find-typedef type) ))
+  (das-typedef-class (das/find-typedef type) ))
 
 
 
@@ -335,20 +305,22 @@
 ;;; typep 11 'integer
 ;;;       'y 'symbol
 
+;;; todo: Rename -> the-typep
+;;; todo: Fix it
 (defun das/typep (value type)
-    (if (eq type nil)
-        (return-from das/typep nil))
-    (if (eq type t)
-        (return-from das/typep t))
-    (if (symbolp type)
-        (let ((def (das/find-typedef type))
-              (fn))
-            (if def
-                (if (setq fn (das-typedef-predicate def))
-                    (funcall fn value)
-                    (error "Invalid typedef ~a" type))
-                (error "Cant find typedef ~a" type )))
-        (error "Invalid type ~a" type) ))
+  (if (eq type nil)
+      (return-from das/typep nil))
+  (if (eq type t)
+      (return-from das/typep t))
+  (if (symbolp type)
+      (let ((def (das/find-typedef type))
+            (fn))
+        (if def
+            (if (setq fn (das-typedef-predicate def))
+                (funcall fn value)
+                (error "Invalid typedef ~a" type))
+            (error "Cant find typedef ~a" type )))
+      (error "Invalid type ~a" type) ))
 
 ;;;
 ;;; subtypep
@@ -381,26 +353,22 @@
 
 ;;; ihnerit types
 (defun %das-inherit-types (supers)
-    ;;(print (list '%%inherit supers))
-    (mapcan #'(lambda (c)
-                  (nconc (list c)
-                         (%das-inherit-types
-                          (das-typedef-supertype (das/find-typedef c)))))
-            supers))
+  (mapcan #'(lambda (c)
+              (nconc (list c)
+                     (%das-inherit-types
+                      (das-typedef-supertype (das/find-typedef c)))))
+          supers))
 
 (defun %build-inherit-types (for)
-    (%das-inherit-types (das-typedef-supertype (das/find-typedef for))))
+  (%das-inherit-types (das-typedef-supertype (das/find-typedef for))))
 
 
-;;;
+;;; note: Rename -> the-subtypep
 ;;; return supertype specializer if type1 is subtype type2
 ;;; nil if not
 ;;;
 (defun das/subtypep (type1 type2)
-    (find type2 (%build-inherit-types type1)))
-
-
-
+  (find type2 (%build-inherit-types type1)))
 
 
 ;;;EOF
