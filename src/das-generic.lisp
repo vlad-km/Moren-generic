@@ -18,61 +18,9 @@
 |#
 
 
-;;; Perf test: (time (dotimes (i 10000000) (struct-read) (struct-write)))
-;;; (defstruct (:type vector))    0.865 sec
-;;; (defstruct (:type list))      2.364 sec
-;;; (@struct)                     4.966 sec
-
-
-(defun %das-struct-generator (kind options slots)
-  (let* ((constructor (cadr (assoc :constructor options)))
-         (opt-key (cadr (assoc :form options)))
-         (key-names (mapcar (lambda (x) (if (consp x) (car x) x)) slots))
-         (obj-keys (mapcar (lambda (x) (let ((y (string-downcase (symbol-name x)))) (list 'list y x))) key-names))
-         (option (if opt-key opt-key '&optional))
-         (maker)
-         (makname (if constructor
-                      (intern (symbol-name constructor))
-                      (intern (jscl::concat "MAKE-" (symbol-name `,kind)))))
-         (getter)
-         (position 0)
-         (q))
-    (unless (jscl::memq option '(&key &optional)) (error "Something went wrong: ~a." options))
-    (setq maker
-          `(defun ,makname (,option ,@slots)
-             (let (({} (ffi:new)))
-               (dolist (it (list ,@obj-keys)) (ffi:setprop ({} (car it)) (cadr it)))
-               (ffi:setprop ({} "__type__") "structure")
-               (ffi:setprop ({} "__type_name__") (string-downcase (symbol-name ',kind)))
-               {} )))
-    (dolist (it obj-keys)
-      (setq getter (intern (jscl::concat (symbol-name kind) "-" (symbol-name (caddr it)))))
-      (push `(defun ,getter ({})(ffi:getprop {} ,(cadr it))) q)
-      (push `(defun (setf ,getter) (value storage)
-               (ffi:setprop (storage ,(cadr it)) value) value)
-            q))
-    (values maker (reverse q))))
-
-;;; note: for structure slot name's with "-"
-;;;       add-sym: (setprop ({} "add-sym") t)
-;;;                js: {}.add-sym wrong name
-;;;                    {}['add-sym'] 
-(defmacro @structure (name-options &rest slots)
-  (let* ((name-options (jscl::ensure-list name-options))
-         (name (car name-options))
-         (options (rest name-options)))
-    (multiple-value-bind (maker accessors) (%das-struct-generator name options slots)
-      `(progn
-         ,maker
-         ,@accessors))))
-
-
-
-
-
-
 ;;; all generic store
-(defparameter *das-gfd* (make-hash-table :test #'equal))
+(defvar *das-gfd* nil)
+(setq *das-gfd*  (make-hash-table :test #'equal))
 
 (defun das/store-gfd (name gf)
     (setf (gethash name *das-gfd*) gf))
@@ -81,22 +29,16 @@
 ;;; return gf descriptor from global table
 (defun das/gf-get-for (name)
   (let ((g (gethash name *das-gfd*)))
-    (unless g (error "Generic ~a not found" name))
+    (unless g (error "DAS: Generic ~a not found." name))
     g))
 
 
 ;;; DAS GF descriptor
-#+nil
-(@structure (das-gf (:form &key))
-            name  arglist lambda-len  lambda-mask   mask-len
-            rest-count optional-count  key-count specialite
-            methods )
 
 (defstruct (das-gf (:type vector) :named)
             name  arglist lambda-len  lambda-mask   mask-len
             rest-count optional-count  key-count specialite
             methods )
-
 
 ;;; make descriptor as vector with type-kid and data store
 #+nil
@@ -145,12 +87,6 @@
 
 ;;; generic as function
 
-#+nil
-(@struct (das-gf-method (:form &key))
-         name lambda-len lambda-mask mask-len
-         lambda-vars rest-count  optional-count  key-count fn primary
-         around before after)
-
 (defstruct (das-gf-method (:type vector) named)
          name lambda-len lambda-mask mask-len
          lambda-vars rest-count  optional-count  key-count fn primary
@@ -193,7 +129,7 @@
 (dasgen-proto-generic das-gf-method-after  13)
 )
 
-(defparameter *das-gf-mask-stop-tokens* '(&rest &optional &key))
+(defconstant *das-gf-mask-stop-tokens* '(&rest &optional &key))
 
 ;;; todo: bad name. rename das/gf-lambda-counter
 (defun das/lambda-counter (lambda-list)
@@ -203,14 +139,14 @@
              (if (find slot *das-gf-mask-stop-tokens*)
                  (return-from das/lambda-counter count)
                  (incf count)) )
-            (t (error (concat "Dont recognized expr ~a" slot))))
+            (t (error (concat "DAS: Dont recognized expr ~a." slot))))
       count)))
 
 ;;; very simple specialize parser
 (defun das/gf-mask-spec-parser-type (expr)
   (if (symbolp expr)
       (return-from das/gf-mask-spec-parser-type (das-typedef-type (das/find-typedef expr)))
-      (error "Invalid typename ~a" expr)))
+      (error "DAS: Invalid typename ~a." expr)))
 
 ;;; todo: bad name. rename das/gf-lambda-mask
 ;;;   return mask count args arglist without typespec
@@ -233,7 +169,7 @@
             ((consp slot)
              (case (length slot)
                ;; May be nil
-               ((0 1) (error "Cant recognize ~a" slot))
+               ((0 1) (error "DAS: Cant recognize slot ~a." slot))
                ;; or class specializer
                ;;    type specializer (var list|integer|float)
                (2 (let ((var (car slot))
@@ -244,7 +180,7 @@
                     (incf count)
                     (push type mask) ))
                ;; other conses dont implemented
-               (otherwise (error  "Specializers form ~a not implemented~%" slot)))
+               (otherwise (error  "DAS: Specializers form ~a not implemented." slot)))
              ) ))
     (values (reverse mask) count (reverse reqvars))))
 
@@ -290,7 +226,7 @@
        :optional-count optional
        :key-count key))))
 
-;;; note: ??
+
 ;;; version for type specializers
 (defun das/gf-parse-lambda-list (lambda-list)
   (multiple-value-bind (mask lmask vars)
@@ -343,13 +279,14 @@
       (push (das/typep (nth idx vals) (nth idx mask)) res ))
     (reverse res)))
 
-;;; note: labels?
+;;; note: fix it
 (defun das/root-dgf (gfname &rest vars)
   (let* ((gf (das/gf-get-for gfname))
          (mhd)
          (args)
          (argvals))
     (labels ((%invoke-by (method-mask)
+               ;; todo: catch error with gethash nil
                (apply (das-gf-method-fn (gethash method-mask mhd)) args ) ))
       ;; prepare methods and args for invoke call
       ;; get methods table
@@ -363,10 +300,11 @@
 
 ;;; DAS!GENERIC MACRO
 
+;;; todo: fix it (fset & others)
 (defmacro das!generic (name (&rest vars))
   (let ((gf (das/gf-create name vars ))
         (fname)
-        (fn (intern (symbol-name (gensym (concat  "DGF-" (princ-to-string name)))))) )
+        (fn (intern (symbol-name (gensym (jscl::concat  "DGF-" (princ-to-string name)))))) )
     (setq fname (intern (symbol-name `,name)))
     `(progn
        ;; Define gf accessor with uniq name DGF-generic-name--bla-bla-bla
@@ -391,6 +329,7 @@
 ;;;
 ;;; Return prop list with  method lambda list parameters
 
+;;; todo: fix the error message
 (defun das/gf-check-lambda  (gf arglist)
   (let ((method-lambda (das/gf-parse-lambda-list arglist)))
     (if (or (/= (das-gf-rest-count gf)
@@ -402,7 +341,7 @@
             (/= (das-gf-mask-len gf)
                 (getf method-lambda :mask-len)))
         (error (format nil
-                       "Method lambda list: ~a~%      ~a~%Generic lambda list: ~a~%       ~a~%"
+                       "DAS: Method lambda list: ~a~%      ~a~%Generic lambda list: ~a~%       ~a."
                        (getf method-lambda :lambda-mask)
                        arglist
                        (das-gf-lambda-mask gf)
@@ -430,11 +369,11 @@
           (t -1))))
 
 
-;;; note: ??
+;;; todo: fix it
 (defun das/gf-sort-specialite (lst)
   (let* ((jarray (list-to-vector lst))
          (sort (lambda (fn)
-                 (funcall ((oget jarray "sort" "bind") jarray fn)))))
+                 (funcall ((jscl::oget jarray "sort" "bind") jarray fn)))))
     (funcall sort #'das/sort-method-mask-comparator)
     (vector-to-list jarray)))
 
@@ -456,7 +395,7 @@
           ;; Method with such a mask already exists
           ;; You just need to change the body function of the method
           ;; specialite list do not change
-          (warn "Method ~a redefinition~%" (das-gf-name gf))
+          (warn "DAS: Method ~a redefinition." (das-gf-name gf))
           (progn
             ;; This is a unique mask
             ;; Remember it in the specialite list and sort the list
