@@ -4,9 +4,9 @@
             /\___/\
             )     (
            =\     /=                  if this code is not work, i dont know who wrote this code
-             )   (                    Copyright © 2017,2024  @vlad-km
-            /     \                   2017, Original https://github.com/vlad-km/dasgen
-            )     (                   2024, Code redesign
+             )   (                    Copyright © 2025  @vlad-km
+            /     \                   
+            )     (                   
            /       \                  Electron >= electron@21.2.2
            \       /                  JSCL >= version 0.8.2  
       jgs   \__ __/
