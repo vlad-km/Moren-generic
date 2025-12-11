@@ -41,96 +41,10 @@
 |#
 
 ;;; TYpe definition structure
-
-#|
-;;; constructor
-
-(defun make-das-typedef (&key type supertype predicate class)
-    (vector (cons 'structure 'das-typedef) type supertype predicate class))
-
-
-;;; predicate
-(defun das-typedef-p (x)
-    (eq (cdr (das/structure-pred x)) 'das-typedef))
-
-;;; accessor's
-;;; type
-(defun das-typedef-type (x)
-    ;;(unless (das-typedef-p x)
-    ;;    (error "The object `~S' is not of type `~S'" x "DAS-TYPEDEF"))
-    (storage-vector-ref x 1))
-
-;;; supertype
-(defun das-typedef-supertype (x)
-    ;;(unless (das-typedef-p x)
-    ;;    (error "The object `~S' is not of type `~S'" x "DAS-TYPEDEF"))
-    (storage-vector-ref x 2))
-
-;;; predicate
-(defun das-typedef-predicate (x)
-    ;;(unless (das-typedef-p x)
-    ;;    (error "The object `~S' is not of type `~S'" x "DAS-TYPEDEF"))
-    (storage-vector-ref x 3))
-
-;;; class
-(defun das-typedef-class (x)
-    ;;(unless (das-typedef-p x)
-    ;;    (error "The object `~S' is not of type `~S'" x "DAS-TYPEDEF"))
-    (storage-vector-ref x 4))
-|#
-
-
 (defstruct (das-typedef (:type vector) :named) type supertype predicate class)
-
-
-#|
-;;; accessors setf expander
-
-(define-setf-expander das-typedef-type (x)
-    (let ((g!object (gensym))
-          (g!new-value (gensym)))
-        (values (list g!object)
-                (list x)
-                (list g!new-value)
-                `(storage-vector-set ,g!object 1 ,g!new-value)
-                `(storage-vector-ref ,g!object 1))))
-
-
-(define-setf-expander das-typedef-supertype (x)
-    (let ((g!object (gensym))
-          (g!new-value (gensym)))
-        (values (list g!object)
-                (list x)
-                (list g!new-value)
-                `(storage-vector-set ,g!object 2 ,g!new-value)
-                `(storage-vector-ref ,g!object 2))))
-
-
-(define-setf-expander das-typedef-predicate (x)
-    (let ((g!object (gensym))
-          (g!new-value (gensym)))
-        (values (list g!object)
-                (list x)
-                (list g!new-value)
-                `(storage-vector-set ,g!object 3 ,g!new-value)
-                `(storage-vector-ref ,g!object 3))))
-
-
-
-(define-setf-expander das-typedef-class (x)
-    (let ((g!object (gensym))
-          (g!new-value (gensym)))
-        (values (list g!object)
-                (list x)
-                (list g!new-value)
-                `(storage-vector-set ,g!object 4 ,g!new-value)
-                `(storage-vector-ref ,g!object 4))))
-|#
-
 
 (defvar *das-types* nil)
 (setq *das-types* (make-hash-table :test #'equal))
-
 
 (export '(def-type))
 (defun def-type (&rest typedef)
@@ -140,17 +54,10 @@
                           :supertype (caddr typedef)
                           :class (cadddr typedef))))
 
-
-
 ;;; Find deftype for symbol type
-;;(export '(find-typedef))
-
 (defun das/find-typedef (type)
   (let ((ok (gethash type *das-types*)))
     (if ok ok (error "DAS: ~a not a type name." type))))
-
-
-
 
 ;;; DAS TYPES PREDICATE
 ;;;
@@ -174,7 +81,6 @@
        (consp (storage-vector-ref obj 0))
        (= (length (storage-vector-ref obj 0)) 2) ))
 
-
 (defun das/standard-object-p (obj)
   (and (storage-vector-p obj)
        (> (length obj) 0)
@@ -186,12 +92,8 @@
 (defun das/standard-object-type-kid (obj)
   (storage-vector-ref obj 0))
 
-
-;;; JSCL compile features
-;;; numberp ... functionp hasnt function symbol
-;;; So, make wrapper's for them
-
-(export '(das/numberp das/characterp das/symbolp das/functionp))
+;;; note: drop it
+;;;(export '(das/numberp das/characterp das/symbolp das/functionp))
 
 (defun das/numberp (value) (numberp value))
 (defun das/characterp (value) (characterp value))
@@ -265,39 +167,19 @@
     ((functionp value) 'function)
     ((keywordp value) 'keyword)
     ((symbolp value) 'symbol)
-    ;;((consp value) 'cons)
-    ;;((keywordp value) 'keyword)
     ((characterp value) 'character)
-    ;; hash-table
     ((das/hash-table-p value) 'hash-table)
     ((consp value) 'cons)
     ((das/standard-object-p value) (cdr (das/standard-object-type-kid value)))
-    ;; (sequence (make-array '(2 2))) => nil
-    ;; (sequence (make-array '(1))) => t
-    ;; (sequence (vector 0)) => t
-    ;; (sequence #()) => t
-    ;;((sequencep value) 'sequence)
-    ;; (vectorp (make-array 1)) => t
-    ;; (vectorp (make-array '(1))) => t
-    ;; (vectorp (make-array '(1 2))) => nil
-    ;; (vectorp (vector 0)) => t
-    ;; (vector #()) => t
-    ;; unreacable with suuperclass sequence
     ((vectorp value) 'vector)
-    ;; (make-array '(2 2))
     ((arrayp value) 'array)
     (t (error "wtf ? ~a" value)) ))
 
-;;;
 ;;; class-of
 ;;; NOTE: ???
 
-(export '(the-class-of))
-
 (defun the-class-of (type)
   (das-typedef-class (find-typedef type) ))
-
-
 
 ;;;
 ;;; typep
@@ -332,7 +214,6 @@
             (error "Cant find typedef ~a." type )))
       (error "Invalid type ~a." type) ))
 
-;;;
 ;;; subtypep
 ;;; subtypep type-1 type-2 &optional environment => subtype-p, valid-p
 ;;;
@@ -353,12 +234,9 @@
 ;;; false    true     type-1 is definitely not a subtype of type-2.
 ;;; false    false    subtypep could not determine the relationship,
 ;;;                   so type-1 might or might not be a subtype of type-2.
-;;;
-;;;
 
 ;;; all supertypes for type
 
-;;; ihnerit types
 (defun %das-inherit-types (supers)
   (mapcan #'(lambda (c)
               (nconc (list c)
@@ -369,11 +247,8 @@
 (defun %build-inherit-types (for)
   (%das-inherit-types (das-typedef-supertype (das/find-typedef for))))
 
-
-;;; note: Rename -> the-subtypep
 ;;; return supertype specializer if type1 is subtype type2
 ;;; nil if not
-;;;
 (defun das/subtypep (type1 type2)
   (find type2 (%build-inherit-types type1)))
 
