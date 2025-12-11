@@ -1,40 +1,32 @@
 ;;; -*- mode:lisp; coding:utf-8  -*-
 
-;;;
-;;; This file is part of the DASGEN package
-;;; Copyright © 2017 Vladimir Mezentsev
-;;;
-;;; DASGEN - simple implementation of Generic function for JSCL.
-;;;
-;;; DASGEN is free software: you can redistribute it and/or modify it under
-;;; the terms of the GNU General  Public License as published by the Free
-;;; Software Foundation,  either version  3 of the  License, or  (at your
-;;; option) any later version.
-;;;
-;;; DASGEN is distributed  in the hope that it will  be useful, but WITHOUT
-;;; ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-;;; FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
-;;; for more details.
-;;;
-;;; You should  have received a  copy of  the GNU General  Public License
-;;; Version 3 from  <http://www.gnu.org/licenses/>.
-;;;
-;;; JSCL   - JSCL is a Common Lisp to Javascript compiler, which is bootstrapped
-;;; from Common Lisp and executed from the browser.
-;;; https://github.com/jscl-project/jscl
-;;;
+#|
 
+            /\___/\
+            )     (
+           =\     /=                  if this code is not work, i dont know who wrote this code
+             )   (                    Copyright © 2017,2025  @vlad-km
+            /     \                   2017, Original https://github.com/vlad-km/dasgen
+            )     (                   2025, Code redesign
+           /       \                  Electron >= electron@21.2.2
+           \       /                  JSCL >= version 0.8.2  
+      jgs   \__ __/
+               ))
+              //                      NOTE: This code is as ancient as mammoth shit.
+             ((
+              \)
+|#
 
 
 (das!generic msort (vector))
-(das!method msort ((object vector))
-            (funcall ((oget object "sort" "bind") object)))
+
+(das!method msort ((object vector)) (ffi:call (object "sort")))
 
 (msort (vector 9 2 3 1 2 3 4))
 ;;=> #(1 2 2 3 3 4 9)
 
 (das!method msort ((object list))
-            (vector-to-list (msort (list-to-vector object))))
+            (ffi::[]->list (msort (ffi:list->[] object))))
 
 (msort '(1 2 3 9 8 1 2 3))
 ;;=> (1 1 2 2 3 3 8 9)
@@ -43,15 +35,10 @@
 
 
 (das!method msort ((object vector) &optional comparator)
-            (funcall ((oget object "sort" "bind") object comparator)))
+            (ffi:call (object "sort") comparator))
 
-(msort (vector 9 8 7 1 2))
+(msort (vector 9 8 7 1 2) (lambda (x y) (- x y)))
 ;;=> #(1 2 7 8 9)
-
-(msort (vector #\a #\b 9 8 #\c 7 1 2))
-;;=> #(1 2 7 8 9 #\a #\b #\c)
-
-
 
 (das!generic compare-slots (x y))
 
@@ -68,32 +55,19 @@
 
 (time (msort (vector '(1 2 3) '(1) '(1 2) '(1 2 3)) #'compare-slots))
 ;;=>
-;;  Execution took 0.014 seconds.
+;;  Execution took 0.001 seconds.
 ;;  #((1 2 3) (1 2 3) (1 2) (1))
 
 
 
 
-;;;
 ;;; Example from Dmitry Ignatiev @love5an
-;;;
 
-(das!structure (negation (:constructor negation (expr)))
-               expr)
+(defstruct (negation (:constructor negation (expr)) :named (:type vector)) expr)
+(def-type 'negation (lambda (p) (negation-p p)))
 
-(das/def-type 'negation
-              (lambda (obj)
-                  (eq (cdr (das/structure-pred obj)) 'negation )))
-
-
-
-(das!structure (addition (:constructor addition (left right)))
-               left right)
-
-(das/def-type 'addition
-              (lambda (obj)
-                  (eq (cdr (das/structure-pred obj)) 'addition )))
-
+(defstruct (addition (:constructor addition (left right)) :named (:type vector)) left right)
+(def-type 'addition (lambda (p) (addition-p p)))
 
 (das!generic evaluate (expr))
 
@@ -107,7 +81,7 @@
 (das!method evaluate ((expr number))
             expr)
 
-
-
 (evaluate (addition 5 (negation -5)))
 ;; ==> 10
+
+;;; EOF
