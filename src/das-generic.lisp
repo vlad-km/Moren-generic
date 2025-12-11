@@ -59,7 +59,7 @@
 ;;; very simple specialize parser
 (defun das/gf-mask-spec-parser-type (expr)
   (if (symbolp expr)
-      (return-from das/gf-mask-spec-parser-type (das-typedef-type (find-typedef expr)))
+      (return-from das/gf-mask-spec-parser-type (das-typedef-type (das/find-typedef expr)))
       (error "DAS: Invalid typename ~a." expr)))
 
 ;;;   return mask count args arglist without typespec
@@ -300,8 +300,8 @@
     (unless mht
       ;; create mask-method hash table
       (setq mht (make-hash-table :test #'equal))
-      (set-das-gf-methods gf mht) )
-
+      ;;(set-das-gf-methods gf mht)
+      (setf (das-gf-methods gf) mht))
     ;; update method table and specialite
     (multiple-value-bind (mask ok) (gethash hash mht)
       (if ok
@@ -313,10 +313,13 @@
             ;; This is a unique mask
             ;; Remember it in the specialite list and sort the list
             (push (getf method-lambda :lambda-mask) (das-gf-specialite gf))
-            (set-das-gf-specialite gf (das/gf-sort-specialite (das-gf-specialite gf))) ) ))
+            ;; bug: (set-das-gf-specialite gf (das/gf-sort-specialite (das-gf-specialite gf)))
+            (setf (das-gf-specialite gf) (das/gf-sort-specialite (das-gf-specialite gf)))
+            ) ))
     ;; In this place to compile the method body
     ;; For connecting call-next environment
-    (set-das-gf-method-fn md method-body)
+    ;; bug: (set-das-gf-method-fn md method-body)
+    (setf (das-gf-method-fn md) method-body)
     ;; Store method descriptor
     ;; key = hash (mask)
     (setf (gethash hash  mht) md )
