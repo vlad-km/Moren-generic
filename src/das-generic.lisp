@@ -18,15 +18,13 @@
 |#
 
 
-;;; all generic store
+;;; all generic's store
 (defvar *das-gfd* nil)
 (setq *das-gfd*  (make-hash-table :test #'equal))
 
 (defun das/store-gfd (name gf)
     (setf (gethash name *das-gfd*) gf))
 
-
-;;; return gf descriptor from global table
 (defun das/gf-get-for (name)
   (let ((g (gethash name *das-gfd*)))
     (unless g (error "DAS: Generic ~a not found." name))
@@ -34,104 +32,20 @@
 
 
 ;;; DAS GF descriptor
-
 (defstruct (das-gf (:type vector) :named)
             name  arglist lambda-len  lambda-mask   mask-len
             rest-count optional-count  key-count specialite
             methods )
 
-;;; make descriptor as vector with type-kid and data store
-#+nil
-(defun make-das-gf (&key name arglist lambda-len lambda-mask  mask-len rest-count
-                      optional-count key-count specialite methods)
-    (vector (cons 'structure 'das-gf)
-            name
-            arglist
-            lambda-len
-            lambda-mask
-            mask-len
-            rest-count
-            optional-count
-            key-count
-            specialite
-            methods))
-
-
-#+nil
-(defmacro dasgen-proto-generic (name location)
-    (let* ((getter (intern (symbol-name name)))
-           (setter (intern (concat "SET-" (string getter)))))
-        `(progn
-             (defun ,getter (obj)
-                 (storage-vector-ref obj ,location))
-
-             (defun ,setter (obj value)
-                 (storage-vector-set obj ,location value))
-             (defsetf ,getter ,setter) )))
-
-#+nil
-(progn
-;;;; accessor's read/write
-(dasgen-proto-generic das-gf-name 1)
-(dasgen-proto-generic das-gf-arglist 2)
-(dasgen-proto-generic das-gf-lambda-len 3)
-(dasgen-proto-generic das-gf-lambda-mask 4)
-(dasgen-proto-generic das-gf-mask-len 5)
-(dasgen-proto-generic das-gf-rest-count 6)
-(dasgen-proto-generic das-gf-optional-count 7)
-(dasgen-proto-generic das-gf-key-count 8)
-(dasgen-proto-generic das-gf-specialite 9)
-(dasgen-proto-generic das-gf-methods 10)
-)
-
-
 ;;; generic as function
-
 (defstruct (das-gf-method (:type vector) :named)
          name lambda-len lambda-mask mask-len
          lambda-vars rest-count  optional-count  key-count fn primary
          around before after)
 
 
-#+nil(defun make-das-gf-method (&key name lambda-len lambda-mask mask-len
-                             lambda-vars rest-count  optional-count  key-count fn)
-    (vector (cons 'structure 'das-gf-method)
-            name
-            lambda-len
-            lambda-mask
-            mask-len
-            lambda-vars
-            rest-count
-            optional-count
-            key-count
-            fn
-            nil
-            nil
-            nil
-            nil))
-
-#+nil
-(progn
-;;; accessor's
-(dasgen-proto-generic das-gf-method-name 1)
-(dasgen-proto-generic das-gf-method-lambda-len 2)
-(dasgen-proto-generic das-gf-method-lambda-mask 3)
-(dasgen-proto-generic das-gf-method-mask-len 4)
-(dasgen-proto-generic das-gf-method-lambda-vars 5)
-(dasgen-proto-generic das-gf-method-rest-count 6)
-(dasgen-proto-generic das-gf-method-optional-count 7)
-(dasgen-proto-generic das-gf-method-key-count 8)
-(dasgen-proto-generic das-gf-method-fn 9)
-
-(dasgen-proto-generic das-gf-method-primary 10)
-(dasgen-proto-generic das-gf-method-around 11)
-(dasgen-proto-generic das-gf-method-before 12)
-(dasgen-proto-generic das-gf-method-after  13)
-)
-
 (defconstant *das-gf-mask-stop-tokens* '(&rest &optional &key))
 
-;;; todo: bad name. rename das/gf-lambda-counter
 (defun das/lambda-counter (lambda-list)
   (let ((count 0))
     (dolist (slot lambda-list)
@@ -148,7 +62,6 @@
       (return-from das/gf-mask-spec-parser-type (das-typedef-type (find-typedef expr)))
       (error "DAS: Invalid typename ~a." expr)))
 
-;;; todo: bad name. rename das/gf-lambda-mask
 ;;;   return mask count args arglist without typespec
 (defun das/lambda-mask (lambda-list)
   (let ((count 0)
