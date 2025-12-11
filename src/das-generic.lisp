@@ -323,7 +323,7 @@
     ;; Store method descriptor
     ;; key = hash (mask)
     (setf (gethash hash  mht) md )
-    (values)))
+    ))
 
 
 ;;; DAS!METHOD macro
