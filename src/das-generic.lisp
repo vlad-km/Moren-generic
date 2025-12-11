@@ -106,7 +106,7 @@
       (setq count (1+ count)) )
     count))
 
-;;; note: labels ??
+;;; todo: labels ??
 ;;; note: sunseq
 ;;; todo: wrong code. lambda-list mb empty
 (defun das/gf-find-optional-args (lambda-list)
@@ -121,8 +121,8 @@
 
 ;;; das/gf creator
 
-;;; note: ??
 ;;; with remove specializers
+#+nil
 (defun das/gf-parse-lambda-list (lambda-list)
   (multiple-value-bind (mask lmask vars)
       (das/lambda-mask lambda-list)
