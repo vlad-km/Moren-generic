@@ -223,7 +223,7 @@
        ;; Define gf accessor with uniq name DGF-generic-name--bla-bla-bla
        (defun ,fn (&rest args) (das/root-dgf ',fname args))
        ;; Set function symbol
-       (fset ',fname (fdefinition ',fn))
+       (jscl::fset ',fname (fdefinition ',fn))
        ;; Store descriptor to global table
        (das/store-gfd ',fname ',gf)
        ',fname)
