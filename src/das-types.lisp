@@ -108,14 +108,12 @@
 |#
 
 
-;;; DAS local  type's hashtable
-
-(defvarr *das-types* nil)
+(defvar *das-types* nil)
 (setq *das-types* (make-hash-table :test #'equal))
 
 
-(export '(das/def-type))
-(defun das/def-type (&rest typedef)
+(export '(def-type))
+(defun def-type (&rest typedef)
   (setf (gethash (car typedef) *das-types*)
         (make-das-typedef :type (car typedef)
                           :predicate (cadr typedef)
@@ -125,11 +123,11 @@
 
 
 ;;; Find deftype for symbol type
-(export '(das/find-typedef))
+(export '(find-typedef))
 
-(defun das/find-typedef (type)
+(defun find-typedef (type)
   (let ((ok (gethash type *das-types*)))
-    (if ok ok (error "~a not type name" type))))
+    (if ok ok (error "DAS: ~a not a type name." type))))
 
 
 
@@ -202,41 +200,42 @@
 ;;;
 
 ;;; todo: fix it
-(defparameter *das-basic-types*
-  '((hash-table das/hash-table-p t)
-    (number das/numberp t)
-    (integer integerp number)
-    (float floatp number)
-    (cons consp sequence)
-    (sequence sequencep t)
-    (list listp cons sequence)
-    (vector vectorp  sequence)
-    (character das/characterp t)
-    (symbol das/symbolp t)
-    (keyword keywordp symbol)
-    (function das/functionp t)
-    (array arrayp t)
-    (string stringp vector)
-    (atom atom)
-    (das das/structure-pred t)
-    (null null list)
-    (t atom)
-    (nil atom null) ))
+(let ()
+  (defparameter *das-basic-types*
+    '((hash-table das/hash-table-p t)
+      (number das/numberp t)
+      (integer integerp number)
+      (float floatp number)
+      (cons consp sequence)
+      (sequence sequencep t)
+      (list listp cons sequence)
+      (vector vectorp  sequence)
+      (character das/characterp t)
+      (symbol das/symbolp t)
+      (keyword keywordp symbol)
+      (function das/functionp t)
+      (array arrayp t)
+      (string stringp vector)
+      (atom atom)
+      (das das/structure-pred t)
+      (null null list)
+      (t atom)
+      (nil atom null) ))
 
-(map 'nil
-     (lambda (typedef)
-       (setf (gethash (car typedef) *das-types*)
-             (make-das-typedef :type (car typedef)
-                               :predicate (cadr typedef)
-                               :supertype (ensure-list (caddr typedef))
-                               :class (cadddr typedef)))) *das-basic-types*)
+  (map 'nil
+       (lambda (typedef)
+         (setf (gethash (car typedef) *das-types*)
+               (make-das-typedef :type (car typedef)
+                                 :predicate (cadr typedef)
+                                 :supertype (ensure-list (caddr typedef))
+                                 :class (cadddr typedef))))
+       *das-basic-types*))
 
 ;;; Some das-type-of
-;;; todo: Rename -> the-type-of
 ;;; todo: Fix it
-(defun das/type-of (value)
+(defun the-type-of (value)
   (unless value
-    (return-from das/type-of 'null))
+    (return-from the-type-of 'null))
   (cond
     ((null value) 'null)
     ((eql value t) 'boolean)
@@ -250,17 +249,14 @@
     ;;((keywordp value) 'keyword)
     ((characterp value) 'character)
     ;; hash-table
-    ((das/hash-table-p value)
-     'hash-table)
+    ((das/hash-table-p value) 'hash-table)
     ((consp value) 'cons)
-    ((das/standard-object-p value)
-     (cdr (das/standard-object-type-kid value)))
+    ((das/standard-object-p value) (cdr (das/standard-object-type-kid value)))
     ;; (sequence (make-array '(2 2))) => nil
     ;; (sequence (make-array '(1))) => t
     ;; (sequence (vector 0)) => t
     ;; (sequence #()) => t
-    ((sequencep value)
-     'sequence)
+    ;;((sequencep value) 'sequence)
     ;; (vectorp (make-array 1)) => t
     ;; (vectorp (make-array '(1))) => t
     ;; (vectorp (make-array '(1 2))) => nil
@@ -272,17 +268,14 @@
     ((arrayp value) 'array)
     (t (error "wtf ? ~a" value)) ))
 
-
-
-
 ;;;
 ;;; class-of
 ;;; NOTE: ???
 
-(export '(das/class-of))
+(export '(the-class-of))
 
-(defun das/class-of (type)
-  (das-typedef-class (das/find-typedef type) ))
+(defun the-class-of (type)
+  (das-typedef-class (find-typedef type) ))
 
 
 
@@ -299,28 +292,25 @@
 ;;; (das/typep nil t) =>  true
 ;;; (das/typep nil nil) =>  false
 
-(export '(das/typep))
+(export '(the-typep))
 
 ;;;
 ;;; typep 11 'integer
 ;;;       'y 'symbol
 
-;;; todo: Rename -> the-typep
 ;;; todo: Fix it
-(defun das/typep (value type)
-  (if (eq type nil)
-      (return-from das/typep nil))
-  (if (eq type t)
-      (return-from das/typep t))
+(defun the-typep (value type)
+  (when (eq type nil)(return-from the-typep nil))
+  (when (eq type t)  (return-from the-typep t))
   (if (symbolp type)
       (let ((def (das/find-typedef type))
             (fn))
         (if def
             (if (setq fn (das-typedef-predicate def))
                 (funcall fn value)
-                (error "Invalid typedef ~a" type))
-            (error "Cant find typedef ~a" type )))
-      (error "Invalid type ~a" type) ))
+                (error "Invalid typedef ~a." type))
+            (error "Cant find typedef ~a." type )))
+      (error "Invalid type ~a." type) ))
 
 ;;;
 ;;; subtypep
@@ -345,9 +335,6 @@
 ;;;                   so type-1 might or might not be a subtype of type-2.
 ;;;
 ;;;
-
-(export '(das/subtypep))
-
 
 ;;; all supertypes for type
 
