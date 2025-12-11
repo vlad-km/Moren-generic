@@ -22,7 +22,7 @@
   :version "1.0.0"
   :components ((:module "src"
                 :components ((:file "package")
-                             (:file "ffi")
-                             (:file "number")))))
+                             (:file "das-types")
+                             (:file "das-generic")))))
 
 ;;; EOF
