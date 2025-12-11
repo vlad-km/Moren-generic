@@ -71,7 +71,7 @@
       ;; Symbol
       (cond ((atom slot)
              ;; If in stop-list, returned
-             (if (find slot *das-gf-mask-stop-tokens*)
+             (if (jscl::memq slot *das-gf-mask-stop-tokens*)
                  (return-from das/lambda-mask (values (reverse mask) count (reverse reqvars)))
                  ;; else mark mask
                  (progn
