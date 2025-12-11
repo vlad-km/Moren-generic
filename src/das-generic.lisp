@@ -87,7 +87,7 @@
 
 ;;; generic as function
 
-(defstruct (das-gf-method (:type vector) named)
+(defstruct (das-gf-method (:type vector) :named)
          name lambda-len lambda-mask mask-len
          lambda-vars rest-count  optional-count  key-count fn primary
          around before after)
@@ -145,7 +145,7 @@
 ;;; very simple specialize parser
 (defun das/gf-mask-spec-parser-type (expr)
   (if (symbolp expr)
-      (return-from das/gf-mask-spec-parser-type (das-typedef-type (das/find-typedef expr)))
+      (return-from das/gf-mask-spec-parser-type (das-typedef-type (find-typedef expr)))
       (error "DAS: Invalid typename ~a." expr)))
 
 ;;; todo: bad name. rename das/gf-lambda-mask
@@ -276,7 +276,7 @@
 (defun %type-value-compare (vals mask)
   (let ((res))
     (dotimes (idx (length vals))
-      (push (das/typep (nth idx vals) (nth idx mask)) res ))
+      (push (the-typep (nth idx vals) (nth idx mask)) res ))
     (reverse res)))
 
 ;;; note: fix it
@@ -420,6 +420,7 @@
     `(das/gf-add-method
       (das/gf-get-for ',gfname)
       ',method-lambda
-      #'(lambda  ,a!list . ,body)) ))
+      #'(lambda  ,a!list . ,body))
+    ) )
 
 ;;; EOF
