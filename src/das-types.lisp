@@ -149,7 +149,7 @@
          (setf (gethash (car typedef) *das-types*)
                (make-das-typedef :type (car typedef)
                                  :predicate (cadr typedef)
-                                 :supertype (ensure-list (caddr typedef))
+                                 :supertype (jscl::ensure-list (caddr typedef))
                                  :class (cadddr typedef))))
        *das-basic-types*))
 
