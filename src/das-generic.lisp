@@ -284,11 +284,11 @@
 
 ;;; todo: fix it
 (defun das/gf-sort-specialite (lst)
-  (let* ((jarray (list-to-vector lst))
+  (let* ((jarray (jscl::list-to-vector lst))
          (sort (lambda (fn)
                  (funcall ((jscl::oget jarray "sort" "bind") jarray fn)))))
     (funcall sort #'das/sort-method-mask-comparator)
-    (vector-to-list jarray)))
+    (jscl::vector-to-list jarray)))
 
 
 ;;; add new method definition
