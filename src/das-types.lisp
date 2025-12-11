@@ -19,6 +19,26 @@
 
 ;;; DAS TYPES.  Very simple types system
 
+#|            Performanse note
+              preliminarily
+
+(das!generic tik (t t t))
+(das!method tik (a b c))
+(das!method tik ((a list) x y) (values :a-list))
+
+(time (dotimes (i 100000) (tik '(1) 2 3)))
+   Execution took 1.333 seconds.
+   Execution took 1.342 seconds.
+   Execution took 1.325 seconds.
+
+(defgeneric tak (t t t))
+(defmethod tak (a b c) :gen)
+(defmethod tak ((a list) b c) :list)
+
+(time (dotimes (i 100000) (tak '(1) 2 3)))
+   Execution took 5.329 seconds.
+
+|#
 
 ;;; TYpe definition structure
 
@@ -123,9 +143,9 @@
 
 
 ;;; Find deftype for symbol type
-(export '(find-typedef))
+;;(export '(find-typedef))
 
-(defun find-typedef (type)
+(defun das/find-typedef (type)
   (let ((ok (gethash type *das-types*)))
     (if ok ok (error "DAS: ~a not a type name." type))))
 
