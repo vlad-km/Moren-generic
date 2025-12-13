@@ -76,19 +76,21 @@
 ;;;    (length ht) = 3
 ;;;    (cadr ht) = function
 
+;;; todo: wrong
 (defun das/hash-table-p (value)
   (and (consp value)
        (eq (car value) 'hash-table)
        (= (length value) 3)
        (functionp (cadr value)) ) )
 
-
+;;; todo: wrong
 (defun das/standard-object-p (obj)
   (and (storage-vector-p obj)
        (> (length obj) 0)
        (consp (storage-vector-ref obj 0))
        (= (length (storage-vector-ref obj 0)) 2) ))
 
+;;; todo: wrong
 (defun das/standard-object-p (obj)
   (and (storage-vector-p obj)
        (> (length obj) 0)
@@ -100,6 +102,7 @@
 (defun das/standard-object-type-kid (obj)
   (storage-vector-ref obj 0))
 
+;;; todo: wrong
 (defun das/numberp (value) (numberp value))
 (defun das/characterp (value) (characterp value))
 (defun das/symbolp (value) (symbolp value))
