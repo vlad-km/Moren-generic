@@ -46,6 +46,14 @@
 (defvar *das-types* nil)
 (setq *das-types* (make-hash-table :test #'equal))
 
+
+;;; definition of the generic type
+;;;
+;;; - any structures. structure must be defined as :named. i.e. (defstruct (ship (:type vector) :named) name deadweight))
+;;; - any entities, why there have own's predicate
+;;;      (def-type 'name (lambda (x) (structure-p x)))
+;;;      or
+;;;      (def-type 'name 'predicate-fn)
 (export '(def-type))
 (defun def-type (&rest typedef)
   (setf (gethash (car typedef) *das-types*)
@@ -91,9 +99,6 @@
 ;;; NOTE: WHAT IS ?
 (defun das/standard-object-type-kid (obj)
   (storage-vector-ref obj 0))
-
-;;; note: drop it
-;;;(export '(das/numberp das/characterp das/symbolp das/functionp))
 
 (defun das/numberp (value) (numberp value))
 (defun das/characterp (value) (characterp value))
