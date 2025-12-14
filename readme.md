@@ -2,12 +2,17 @@
 
 
 ## das:generic
+Must be declared before method definitions.
 
-*das:generic* ::= name arg* optionals
+*das:generic* ::= *name* *args* *optionals*
 
-*name*::= symbol
-*arg* :: symbol
-*optionals* ::= &optional | &keyword | &rest
+*name*::= `symbol`
+
+*args* :: `symbol` | `symbol` ... `symbol`
+
+*optionals* ::= `&optional` | `&keyword` | `&rest`
+
+*Optionals* : `:method`, `:documentation` and others, not implemented.
 
 ```lisp
    (das:generic name (x y z))
@@ -15,30 +20,26 @@
    (das:generic name (pip &key x y z))
 ```
 
-Must be declared before method definitions
-
-Optionals : `:method`, `:documentation` and others, not implemented.
-
-
-### das:method
+## das:method
 
 ```lisp
 (das:method function-name  specialized-lambda-list  form*)
 ``` 
 
-*function-name*::= symbol
+*function-name*::= `symbol`
 
 *specialized-lambda-list*::= ({var | (var parameter-specializer)}* 
                               &optional var-form* | &key var-form*  | &rest var)
 
-*release limitation*: only &optional / &key / &rest forms.
+*release limitation*::= *only &optional / &key / &rest forms*.
 
-*parameter-specializer*: integer | float | character | string 
-                       | list  | consp | function
-                       | hash-table | vector | symbol | keyword 
-                       | any-type-name
+*parameter-specializer*::= `integer` | `float` | `character` | `string`
+                           | `list`  | `consp` | `function`
+                           | `hash-table` | `vector` | `symbol` | `keyword` 
+                           | `any-type-name`
 
 *any-type-name* ::= any lisp entity that has a `predicate`, and registered with the function `das:def-type`
+
 
 ```lisp
     (das:generic compare-slots (x y))    
@@ -63,6 +64,23 @@ Optionals : `:method`, `:documentation` and others, not implemented.
 
      (evaluate (addition 5 (negation -5)))
 ;; ==> 10
+
+```
+
+## das:def-type
+
+
+
+## Compilation
+
+```lisp
+
+(setq bin (make-array 0 :fillpointer 0)) 
+(load "package.lisp" :hook bin)
+(load "das-types.lisp" :hook bin)
+(load "das-generic.lisp" :hook bin :output "./dasgen.js")
+
+;; further use:  (require "./dasgen.js") or html:<script >
 
 ```
 
