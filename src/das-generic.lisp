@@ -69,18 +69,6 @@
 (defun das/gener-raise (n-error &rest arguments)
   (apply 'error (push (aref *dasgen-meser* n-error) arguments)))
 
-;;; utils
-#+nil
-(defun das/lambda-counter (lambda-list)
-  (let ((count 0))
-    (dolist (slot lambda-list)
-      (cond ((atomp slot)
-             (if (find slot *das-gf-mask-stop-tokens*)
-                 (return-from das/lambda-counter count)
-                 (incf count)) )
-            (t (error (jscl::concat "DAS: Dont recognized expr ~a." slot))))
-      count)))
-
 (defun das/lambda-counter (lambda-list)
   (let ((count 0))
     (dolist (slot lambda-list)
@@ -89,16 +77,10 @@
                  (return-from das/lambda-counter count)
                  (incf count)) )
             (t (das/gener-raise +wrong-expression+  slot))))
-      count)))
+    count))
 
 
 ;;; very simple specialize parser
-#+nil
-(defun das/gf-mask-spec-parser-type (expr)
-  (if (symbolp expr)
-      (return-from das/gf-mask-spec-parser-type (das-typedef-type (das/find-typedef expr)))
-      (error "DAS: Invalid typename ~a." expr)))
-
 (defun das/gf-mask-spec-parser-type (expr)
   (if (symbolp expr)
       (return-from das/gf-mask-spec-parser-type (das-typedef-type (das/find-typedef expr)))
@@ -144,7 +126,7 @@
   (let ((count 0))
     (dolist (slot sub-lambda-list)
       (when (find slot *das-gf-mask-stop-tokens*)
-          (return-from das/gf-optionals-counter count))
+        (return-from das/gf-optionals-counter count))
       (setq count (1+ count)) )
     count))
 
@@ -162,25 +144,6 @@
       (values (%counter rest) (%counter optional) (%counter key)))))
 
 ;;; das/gf creator
-
-;;; with remove specializers
-#+nil
-(defun das/gf-parse-lambda-list (lambda-list)
-  (multiple-value-bind (mask lmask vars)
-      (das/lambda-mask lambda-list)
-    (multiple-value-bind (rest optional key)
-        (das/gf-find-optional-args lambda-list)
-      (list
-       :lambda-len (length lambda-list)
-       :lambda-mask mask
-       :mask-len lmask
-       :lambda-vars (if (= lmask (length lambda-list))
-                        vars
-                        (append vars (subseq lambda-list lmask)))
-       :rest-count rest
-       :optional-count optional
-       :key-count key))))
-
 
 ;;; version for type specializers
 (defun das/gf-parse-lambda-list (lambda-list)
@@ -281,47 +244,9 @@
 ;;;    4 - count key arguments
 ;;;
 ;;; Remove type specializers from required arguments
-;;;
 ;;; Return prop list with  method lambda list parameters
 
 ;;; todo: fix the error message
-#+nil
-(defun das/gf-check-lambda  (gf arglist)
-  (let ((method-lambda (das/gf-parse-lambda-list arglist)))
-    (if (or (/= (das-gf-rest-count gf)
-                (getf method-lambda :rest-count))
-            (/= (das-gf-optional-count gf)
-                (getf method-lambda :optional-count))
-            (/= (das-gf-key-count gf)
-                (getf method-lambda :key-count))
-            (/= (das-gf-mask-len gf)
-                (getf method-lambda :mask-len)))
-        (error (format nil
-                       "DAS: Method lambda list: ~a~%      ~a~%Generic lambda list: ~a~%       ~a."
-                       (getf method-lambda :lambda-mask)
-                       arglist
-                       (das-gf-lambda-mask gf)
-                       (das-gf-arglist gf))))
-    method-lambda) )
-
-#+nil
-(defun das/gf-check-lambda  (gf arglist)
-  (let ((method-lambda (das/gf-parse-lambda-list arglist)))
-    (if (or (/= (das-gf-rest-count gf)
-                (getf method-lambda :rest-count))
-            (/= (das-gf-optional-count gf)
-                (getf method-lambda :optional-count))
-            (/= (das-gf-key-count gf)
-                (getf method-lambda :key-count))
-            (/= (das-gf-mask-len gf)
-                (getf method-lambda :mask-len)))
-        (das/gener-raise  +method-lambda-list-expected+
-                          (getf method-lambda :lambda-mask)
-                          arglist
-                          (das-gf-lambda-mask gf)
-                          (das-gf-arglist gf)))
-    method-lambda) )
-
 (defun das/gf-check-lambda  (gf arglist)
   (let ((method-lambda (das/gf-parse-lambda-list arglist)))
     (cond ((or (/= (das-gf-rest-count gf)
