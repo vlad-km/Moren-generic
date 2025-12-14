@@ -46,6 +46,31 @@
 
 (defconstant *das-gf-mask-stop-tokens* '(&rest &optional &key))
 
+;;; errors
+(defvar *dasgen-meser*)
+(setq *dasgen-meser*
+      #(
+        "DAS: Generic ~a not found."                                                 ;; das/gf-get-for
+        "DAS: Dont recognized expr ~a."                                              ;; das/lambda-counter
+        "DAS: Invalid typename ~a."                                                  ;; das/gf-mask-spwc-parser-type
+        "DAS: Cant recognize slot ~a."                                               ;; das/lambda-mask
+        "DAS: Specializers form ~a not implemented."                                 ;; das/lambda-mask
+        "DAS: Method lambda list: ~a~%      ~a~%Generic lambda list: ~a~%       ~a." ;; das/gf-check-lambda
+        ))
+
+(defconstant +generic-not-exists+ 0)
+(defconstant +wrong-expression+ 1)
+(defconstant +wrong-type-name+ 2)
+(defconstant +cant-recognized+ 3)
+(defconstant +specializers-form+ 4)
+(defconstant +method-lambda-list-expected+ 5)
+
+
+(defun das/gener-raise (n-error &rest arguments)
+  (apply 'error (push (aref *dasgen-meser* n-error) arguments)))
+
+;;; utils
+#+nil
 (defun das/lambda-counter (lambda-list)
   (let ((count 0))
     (dolist (slot lambda-list)
@@ -53,14 +78,31 @@
              (if (find slot *das-gf-mask-stop-tokens*)
                  (return-from das/lambda-counter count)
                  (incf count)) )
-            (t (error (concat "DAS: Dont recognized expr ~a." slot))))
+            (t (error (jscl::concat "DAS: Dont recognized expr ~a." slot))))
       count)))
 
+(defun das/lambda-counter (lambda-list)
+  (let ((count 0))
+    (dolist (slot lambda-list)
+      (cond ((atomp slot)
+             (if (find slot *das-gf-mask-stop-tokens*)
+                 (return-from das/lambda-counter count)
+                 (incf count)) )
+            (t (das/gener-raise +wrong-expression+  slot))))
+      count)))
+
+
 ;;; very simple specialize parser
+#+nil
 (defun das/gf-mask-spec-parser-type (expr)
   (if (symbolp expr)
       (return-from das/gf-mask-spec-parser-type (das-typedef-type (das/find-typedef expr)))
       (error "DAS: Invalid typename ~a." expr)))
+
+(defun das/gf-mask-spec-parser-type (expr)
+  (if (symbolp expr)
+      (return-from das/gf-mask-spec-parser-type (das-typedef-type (das/find-typedef expr)))
+      (das/gener-raise +wrong-type-name+ expr)))
 
 ;;;   return mask count args arglist without typespec
 (defun das/lambda-mask (lambda-list)
@@ -82,7 +124,7 @@
             ((consp slot)
              (case (length slot)
                ;; May be nil
-               ((0 1) (error "DAS: Cant recognize slot ~a." slot))
+               ((0 1) (das/gener-raise +cant-recognized+  slot))
                ;; or class specializer
                ;;    type specializer (var list|integer|float)
                (2 (let ((var (car slot))
@@ -93,7 +135,7 @@
                     (incf count)
                     (push type mask) ))
                ;; other conses dont implemented
-               (otherwise (error  "DAS: Specializers form ~a not implemented." slot)))
+               (otherwise (das/gener-raise +specializers-form+ slot)))
              ) ))
     (values (reverse mask) count (reverse reqvars))))
 
@@ -217,7 +259,7 @@
 (defmacro das!generic (name (&rest vars))
   (let ((gf (das/gf-create name vars ))
         (fname)
-        (fn (intern (symbol-name (gensym (jscl::concat  "DGF-" (princ-to-string name)))))) )
+        (fn (intern (symbol-name (gensym (jscl::concat "DGF-" (princ-to-string name)))))) )
     (setq fname (intern (symbol-name `,name)))
     `(progn
        ;; Define gf accessor with uniq name DGF-generic-name--bla-bla-bla
@@ -243,6 +285,7 @@
 ;;; Return prop list with  method lambda list parameters
 
 ;;; todo: fix the error message
+#+nil
 (defun das/gf-check-lambda  (gf arglist)
   (let ((method-lambda (das/gf-parse-lambda-list arglist)))
     (if (or (/= (das-gf-rest-count gf)
@@ -260,6 +303,46 @@
                        (das-gf-lambda-mask gf)
                        (das-gf-arglist gf))))
     method-lambda) )
+
+#+nil
+(defun das/gf-check-lambda  (gf arglist)
+  (let ((method-lambda (das/gf-parse-lambda-list arglist)))
+    (if (or (/= (das-gf-rest-count gf)
+                (getf method-lambda :rest-count))
+            (/= (das-gf-optional-count gf)
+                (getf method-lambda :optional-count))
+            (/= (das-gf-key-count gf)
+                (getf method-lambda :key-count))
+            (/= (das-gf-mask-len gf)
+                (getf method-lambda :mask-len)))
+        (das/gener-raise  +method-lambda-list-expected+
+                          (getf method-lambda :lambda-mask)
+                          arglist
+                          (das-gf-lambda-mask gf)
+                          (das-gf-arglist gf)))
+    method-lambda) )
+
+(defun das/gf-check-lambda  (gf arglist)
+  (let ((method-lambda (das/gf-parse-lambda-list arglist)))
+    (cond ((or (/= (das-gf-rest-count gf)
+                   (getf method-lambda :rest-count))
+               (/= (das-gf-optional-count gf)
+                   (getf method-lambda :optional-count))
+               (/= (das-gf-key-count gf)
+                   (getf method-lambda :key-count))
+               (/= (das-gf-mask-len gf)
+                   (getf method-lambda :mask-len)))
+           ;; return aproved lambda mask
+           method-lambda)
+          (t
+           ;; raise condition
+           (das/gener-raise  +method-lambda-list-expected+
+                             (getf method-lambda :lambda-mask)
+                             arglist
+                             (das-gf-lambda-mask gf)
+                             (das-gf-arglist gf))))
+    ))
+
 
 ;;; add new method
 ;;;
