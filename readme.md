@@ -48,9 +48,9 @@ Must be declared before method definitions.
     (das:method compare-slots ((x list) (y list)) )
 
     (defstruct (negation (:constructor negation (expr)) :named (:type vector)) expr)   
-    (def-type 'negation (lambda (p) (negation-p p)))
+    (das:def-type 'negation (lambda (p) (negation-p p)))
 
-    (das:defstruct (addition (:constructor addition (left right)) :named (:type vector)) left right)
+    (defstruct (addition (:constructor addition (left right)) :named (:type vector)) left right)
     (das:def-type 'addition (lambda (p) (addition-p p)))
 
     (das:generic evaluate (expr))
