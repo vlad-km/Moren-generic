@@ -273,7 +273,6 @@
 ;;;
 ;;; Sort function for specialite
 ;;; Use:
-;;;    at clos/gf-add-method
 ;;;    most specified method mask must be first
 ;;;    in method mask list for clos/gf-root
 ;;; <= ((t integer t) (t integer integer) (t t t))
