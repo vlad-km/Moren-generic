@@ -43,9 +43,29 @@
 ;;; TYpe definition structure
 (defstruct (das-typedef (:type vector) :named) type supertype predicate class)
 
+;;; das types datum
 (defvar *das-types* nil)
 (setq *das-types* (make-hash-table :test #'equal))
 
+;;; errors
+(defvar *dasgen-typer*)
+(setq *dasgen-typer*
+      #(
+        "DAS: wrong `def-type` form (~a ~a).~%Expected two arguments minimum." ;; def-type
+        "DAS: type-def ~a not exists."                                         ;; das/find-typedef
+        "DAS: wtf a  ~a ?"                                                     ;; the-type-of
+        "DAS: wrong type-def :predicate for ~a, `function` expected."          ;; the-typep
+        "DAS: invalid type ~a, `symbol` expected"                              ;; 
+        ))
+
+(defconstant +wrong-deftype-form+ 0)  ;; def-type
+(defconstant +typedef-not-exists+ 1) ;; find-typedef
+(defconstant +wtf+ 2) ;; the-type-of
+(defconstant +function-expected+ 3) ;; the-typep
+(defconstant +symbol-expected+ 4)
+
+(defun das/typer-raise (n-error &rest arguments)
+  (apply 'error (push (aref *dasgen-typer* n-error) arguments)))
 
 ;;; definition of the generic type
 ;;;
@@ -55,95 +75,62 @@
 ;;;      or
 ;;;      (def-type 'name 'predicate-fn)
 (export '(def-type))
-(defun def-type (&rest typedef)
-  (setf (gethash (car typedef) *das-types*)
-        (make-das-typedef :type (car typedef)
-                          :predicate (cadr typedef)
-                          :supertype (caddr typedef)
-                          :class (cadddr typedef))))
+(defun def-type (&key (type) (predicate nil predicate-p) (supertype nil super-p))
+  (when (or (null type) (null predicate-p))
+    (das/typer-raise +wrong-deftype-form+  type predicate))
+  (let ()
+    (check-type type symbol)
+    (check-type predicate function)
+    (when supertype (check-type supertype symbol))
+    (setf (gethash (car typedef) *das-types*)
+          (make-das-typedef :type type
+                            :predicate predicate
+                            :supertype supertype
+                            :class class))))
 
 ;;; Find deftype for symbol type
 (defun das/find-typedef (type)
   (let ((ok (gethash type *das-types*)))
-    (if ok ok (error "DAS: ~a not a type name." type))))
-
-;;; DAS TYPES PREDICATE
-;;;
-;;; ht - hash table
-;;; generic form = (hash-table mem fn &others)
-;;; properties
-;;;    (car ht) = hash-table
-;;;    (length ht) = 3
-;;;    (cadr ht) = function
-
-;;; todo: wrong
-(defun das/hash-table-p (value)
-  (and (consp value)
-       (eq (car value) 'hash-table)
-       (= (length value) 3)
-       (functionp (cadr value)) ) )
-
-;;; todo: wrong
-(defun das/standard-object-p (obj)
-  (and (storage-vector-p obj)
-       (> (length obj) 0)
-       (consp (storage-vector-ref obj 0))
-       (= (length (storage-vector-ref obj 0)) 2) ))
-
-;;; todo: wrong
-(defun das/standard-object-p (obj)
-  (and (storage-vector-p obj)
-       (> (length obj) 0)
-       (consp (storage-vector-ref obj 0))
-       (member (car (storage-vector-ref obj 0)) '(structure instance))
-       t ))
+    (if ok ok (das/typer-raise +typedef-not-exists+ type))))
 
 ;;; NOTE: WHAT IS ?
 (defun das/standard-object-type-kid (obj)
   (storage-vector-ref obj 0))
 
-;;; todo: wrong
-(defun das/numberp (value) (numberp value))
-(defun das/characterp (value) (characterp value))
-(defun das/symbolp (value) (symbolp value))
-(defun das/functionp (value) (functionp value))
-
-
-;;;
+;;; todo: fix
 ;;; types/classes hierarchy
 ;;;
 ;;; t             atom
 ;;; character      t
 ;;; function       t
 ;;; array          t
-;;; sequence       t
 ;;; number         t
+;;; float          number
+;;; integer        number
 ;;; symbol         t
-;;; vector         array sequence
+;;; vector         array
 ;;; string         vector
 ;;; list           sequence
 ;;; cons           list
 ;;; null           list
-;;; float          number
-;;; integer        number
 ;;; hash-table     t
 ;;;
 
-;;; todo: fix it
+;;; tiny base-types
 (let ()
   (defparameter *das-basic-types*
-    '((hash-table das/hash-table-p t)
-      (number das/numberp t)
+    '((hash-table hash-table-p t)
+      (number numberp t)
       (integer integerp number)
       (float floatp number)
       (cons consp sequence)
-      (sequence sequencep t)
+      ;;(sequence sequencep t)
       (list listp cons sequence)
       (vector vectorp  sequence)
-      (character das/characterp t)
-      (symbol das/symbolp t)
+      (character characterp t)
+      (symbol symbolp t)
       (keyword keywordp symbol)
-      (function das/functionp t)
+      (function functionp t)
       (array arrayp t)
       (string stringp vector)
       (atom atom)
@@ -161,8 +148,7 @@
                                  :class (cadddr typedef))))
        *das-basic-types*))
 
-;;; Some das-type-of
-;;; todo: Fix it
+;;; tiny type-of
 (defun the-type-of (value)
   (unless value
     (return-from the-type-of 'null))
@@ -176,75 +162,30 @@
     ((keywordp value) 'keyword)
     ((symbolp value) 'symbol)
     ((characterp value) 'character)
-    ((das/hash-table-p value) 'hash-table)
+    ((hash-table-p value) 'hash-table)
     ((consp value) 'cons)
-    ((das/standard-object-p value) (cdr (das/standard-object-type-kid value)))
+    ((das/standard-object-p value)
+     (cdr (das/standard-object-type-kid value)))
     ((vectorp value) 'vector)
     ((arrayp value) 'array)
-    (t (error "wtf ? ~a" value)) ))
+    (t (das/typer-raise +wtf+ value)) ))
 
 ;;; class-of
-;;; NOTE: ???
-
 (defun the-class-of (type)
   (das-typedef-class (find-typedef type) ))
 
-;;;
-;;; typep
-;;; typep object type-specifier &optional environment
-;;;      => generalized-boolean
-;;;
-;;; Returns true if object is of the type specified by type-specifier;
-;;; otherwise, returns false.
-;;;
-;;; (das/typep (make-array 0 :element-type 'Ax) 'vector) =>  true
-;;; (das/typep 12 'integer) =>  true
-;;; (das/typep nil t) =>  true
-;;; (das/typep nil nil) =>  false
-
 (export '(the-typep))
-
-;;;
-;;; typep 11 'integer
-;;;       'y 'symbol
-
-;;; todo: Fix it
-(defun the-typep (value type)
+;;; tiny typep
+(defun the-typep (value type) 
   (when (eq type nil)(return-from the-typep nil))
   (when (eq type t)  (return-from the-typep t))
   (if (symbolp type)
-      (let ((def (das/find-typedef type))
-            (fn))
-        (if def
-            (if (setq fn (das-typedef-predicate def))
-                (funcall fn value)
-                (error "Invalid typedef ~a." type))
-            (error "Cant find typedef ~a." type )))
-      (error "Invalid type ~a." type) ))
+      (let ((def (das/find-typedef type)))
+        (cond (def (funcall (das-typedef-predicate def) value))
+              (t (das/typer-raise +typedef-not-exists+ type ))))
+      (das/typer-raise +symbol-expected+ type) ))
 
-;;; subtypep
-;;; subtypep type-1 type-2 &optional environment => subtype-p, valid-p
-;;;
-;;; From CL
-;;;
-;;; If type-1 is a recognizable subtype of type-2, the first value is true. Otherwise,
-;;; the first value is false, indicating that either type-1 is not a subtype of type-2,
-;;; or else type-1 is a subtype of type-2 but is not a recognizable subtype.
-;;;
-;;; A second value is also returned indicating the `certainty' of the first value. If this value is true,
-;;; then the first value is an accurate indication of the subtype relationship.
-;;; (The second value is always true when the first value is true.)
-;;;
-;;; The next figure summarizes the possible combinations of values that might result.
-;;;
-;;; Value 1  Value 2  Meaning
-;;; true     true     type-1 is definitely a subtype of type-2.
-;;; false    true     type-1 is definitely not a subtype of type-2.
-;;; false    false    subtypep could not determine the relationship,
-;;;                   so type-1 might or might not be a subtype of type-2.
-
-;;; all supertypes for type
-
+;;; tiny subtypep. only internal form
 (defun %das-inherit-types (supers)
   (mapcan #'(lambda (c)
               (nconc (list c)
@@ -255,8 +196,6 @@
 (defun %build-inherit-types (for)
   (%das-inherit-types (das-typedef-supertype (das/find-typedef for))))
 
-;;; return supertype specializer if type1 is subtype type2
-;;; nil if not
 (defun das/subtypep (type1 type2)
   (find type2 (%build-inherit-types type1)))
 
