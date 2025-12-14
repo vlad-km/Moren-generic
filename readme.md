@@ -76,9 +76,9 @@ Must be declared before method definitions.
 ```lisp
 
 (setq bin (make-array 0 :fillpointer 0)) 
-(load "package.lisp" :hook bin)
-(load "das-types.lisp" :hook bin)
-(load "das-generic.lisp" :hook bin :output "./dasgen.js")
+(load "src/package.lisp" :hook bin)
+(load "src/das-types.lisp" :hook bin)
+(load "src/das-generic.lisp" :hook bin :output "./dasgen.js")
 
 ;; further use:  (require "./dasgen.js") or html:<script >
 
