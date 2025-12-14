@@ -1,15 +1,7 @@
-# DAS- simple implementation of CommonLisp Generic Function for Moren Edition JSCL
+# DAS- simple implementation of CommonLisp Generic Function for Moren Environment
 
 
-## Simple implementation of 'defgeneric' and 'defmethod'
-
-Macros: 
-- das:generic 
-- das:method
-
-Look at `examples/das-examples.lisp` 
-
-### das:generic
+## das:generic
 
 ```lisp
    (das:generic name (args*))
@@ -20,20 +12,23 @@ Must be declared before the definition of the method. Optionals :method, :docume
 
 ### das:method
 
-das:method function-name  specialized-lambda-list  form*
+```lisp
+(das:method function-name  specialized-lambda-list  form*)
 => new-method
 
-function-name::= symbol
+*function-name*::= symbol
 
-specialized-lambda-list::= ({var | (var parameter-specializer-name)}* 
-                            [&optional {var | (var [initform ])}*] 
-                            [&rest var] 
-                            [&key{var | ({var | (keywordvar)} [initform  ])}*]
+*specialized-lambda-list*::= ({var | (var parameter-specializer)}* 
+                              &optional var-form* | &key var-form*  | &rest var)
 
-parameter-specializer: integer | float | character | string 
-                       | list  | consp
+*release limitation*: only &optional / &key / &rest forms.
+
+*parameter-specializer*: integer | float | character | string 
+                       | list  | consp | function
                        | hash-table | vector | symbol | keyword 
-                       | das!structure-name ?????
+                       | any-type-name
+
+*any-type-name* ::= any lisp entity that has a `predicate`, and registered with the function `das:def-type`
 
 ```lisp
     (das:method compare-slots ((x integer) (y integer)) )
