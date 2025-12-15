@@ -1,8 +1,10 @@
-# DAS- simple implementation of CommonLisp Generic Function for Moren Environment
-
+# DAS- tiny implementation of CommonLisp Generic Function for Moren environment
 
 ## das:generic
-Must be declared before method definitions.
+
+*Must be declared before method's definition*
+
+*defgeneric syntax* `:method`, `:documentation` and others, *not implemented*.
 
 *das:generic* ::= *name* *args* *optionals*
 
@@ -12,7 +14,6 @@ Must be declared before method definitions.
 
 *optionals* ::= `&optional` | `&keyword` | `&rest`
 
-*Optionals* : `:method`, `:documentation` and others, not implemented.
 
 ```lisp
    (das:generic name (x y z))
@@ -22,21 +23,22 @@ Must be declared before method definitions.
 
 ## das:method
 
-```lisp
-(das:method function-name  specialized-lambda-list  form*)
-``` 
+*defmethod syntax* `:before`,`:after`,`:around`  *not implemented*.
+
+*das:method* *function-name*  *specialized-lambda-list*  *forms*)
 
 *function-name*::= `symbol`
 
-*specialized-lambda-list*::= ({var | (var parameter-specializer)}* 
-                              &optional var-form* | &key var-form*  | &rest var)
+*specialized-lambda-list*::= *vars* *optional* | *vars* *typed-vars* *optionals*
 
-*release limitation*::= *only &optional / &key / &rest forms*.
+*vars* ::= `symbol` ... `symbol`
 
-*parameter-specializer*::= `integer` | `float` | `character` | `string`
-                           | `list`  | `consp` | `function`
-                           | `hash-table` | `vector` | `symbol` | `keyword` 
-                           | `any-type-name`
+*typed-vars* ::= (`symbol` *type-name*) ... (`symbol` *type-name*)
+
+*type-name* ::= `integer` | `float` | `character` | `string` | `list`  | `consp` | `function` 
+| `hash-table` | `vector` | `symbol` | `keyword`  | *any-type-name*
+
+*optionals* ::= *only &optional/&key/&rest forms*
 
 *any-type-name* ::= any lisp entity that has a `predicate`, and registered with the function `das:def-type`
 
@@ -63,13 +65,65 @@ Must be declared before method definitions.
             expr)
 
      (evaluate (addition 5 (negation -5)))
-;; ==> 10
 
 ```
 
 ## das:def-type
 
+*das:def-type* :*type* :*predicate* 
 
+*type* ::= `symbol`
+
+*predicate* ::= 'symbol` | `function`
+
+```lisp
+(defstruct (stub (:type vector) :named) (fn (error "undef function") :type function))
+(das:def-type :type 'stub :predicate (lambda (x) (stub-p x)))
+
+(das:generic anything (x y))
+(das:method anything (x y) (format t "Don't know what do this tool: ~a  with this object: ~a~%" x y))
+(das:method anything ((than stub) (with vector)) (ffi:call (with "forEach") (stub-fn than)))
+(das:method anything ((than function) (with vector)) (ffi:call (with "forEach") than))
+
+(setq heap (make-array '(5) :initial-element (ffi:ref "undefined")))
+(setq ps (make-stub :fn (lambda (x) (format t "And what do with it ~a?~%" x))))
+(anything ps heap)
+(anything t (list 1 2 3))
+
+(das:method anything ((than function) (with list))
+  (let (result)
+      (dolist (it with (reverse result)) (push (funcall than it) result))))
+
+(anything 'integerp (list 1 2 3 4))
+
+```
+
+## das:the-type-of
+
+*das:the-type-of* `object`
+
+```lisp
+(das:the-type-of 1) => t
+(das:the-type-of nil) => nil
+(das:the-type-of ps) => stub
+```
+
+## das:the-typep
+
+*das:the-typep* `object` `type-name`
+
+*object* ::= `<any entitie>`
+
+*type-name* ::= `symbol`
+
+```lisp
+(das:the-typep (list 1 2 3) 'list) => t
+(das:the-typep ps 'stub) => t
+(das:def-type :name 'list-triple 
+              :predicate (lambda (x) 
+                           (when  (listp x) (eq (length x) 3))))
+(das:the-typep '(1 2 3) 'list-triple) => t
+```
 
 ## Compilation
 
@@ -84,9 +138,6 @@ Must be declared before method definitions.
 
 ```
 
-
 ### Copyright 2017,2025 @vlad-km
-
-#### Have a func!
 
 

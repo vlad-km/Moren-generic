@@ -4,15 +4,15 @@
 
             /\___/\
             )     (
-           =\     /=                  if this code is not work, i dont know who wrote this code
+           =\     /=                  
              )   (                    Copyright © 2017,2025  @vlad-km
             /     \                   2017, Original https://github.com/vlad-km/dasgen
             )     (                   2025, Code redesign
-           /       \                  Electron >= electron@21.2.2
-           \       /                  JSCL >= version 0.8.2  
-      jgs   \__ __/
+           /       \                  
+           \       /                  Electron
+      jgs   \__ __/                   Moren environment
                ))
-              //                      NOTE: This code is as ancient as mammoth shit.
+              //                      
              ((
               \)
 |#
