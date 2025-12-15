@@ -1,166 +1,143 @@
-# DASGEN - simple implementation of CommonLisp Generic Function for JSCL
+# DAS- tiny implementation of CommonLisp Generic Function for Moren environment
 
-## Status - development
+## das:generic
 
-## Distribution
+*Must be declared before method's definition*
+
+*defgeneric syntax* `:method`, `:documentation` and others, *not implemented*.
+
+*das:generic* ::= *name* *args* *optionals*
+
+*name*::= `symbol`
+
+*args* :: `symbol` | `symbol` ... `symbol`
+
+*optionals* ::= `&optional` | `&keyword` | `&rest`
+
+
+```lisp
+   (das:generic name (x y z))
+   (das:generic name (x &optional a b c))
+   (das:generic name (pip &key x y z))
+```
+
+## das:method
+
+*defmethod syntax* `:before`,`:after`,`:around`  *not implemented*.
+
+*das:method* *function-name*  *specialized-lambda-list*  *forms*)
+
+*function-name*::= `symbol`
+
+*specialized-lambda-list*::= *vars* *optional* | *vars* *typed-vars* *optionals*
+
+*vars* ::= `symbol` ... `symbol`
+
+*typed-vars* ::= (`symbol` *type-name*) ... (`symbol` *type-name*)
+
+*type-name* ::= `integer` | `float` | `character` | `string` | `list`  | `consp` | `function` 
+| `hash-table` | `vector` | `symbol` | `keyword`  | *any-type-name*
+
+*optionals* ::= *only &optional/&key/&rest forms*
+
+*any-type-name* ::= any lisp entity that has a `predicate`, and registered with the function `das:def-type`
+
+
+```lisp
+    (das:generic compare-slots (x y))    
+    (das:method compare-slots ((x integer) (y integer)) )
+    (das:method compare-slots ((x integer) y ) )
+    (das:method compare-slots ((x list) (y list)) )
+
+    (defstruct (negation (:constructor negation (expr)) :named (:type vector)) expr)   
+    (das:def-type 'negation (lambda (p) (negation-p p)))
+
+    (defstruct (addition (:constructor addition (left right)) :named (:type vector)) left right)
+    (das:def-type 'addition (lambda (p) (addition-p p)))
+
+    (das:generic evaluate (expr))
+    (das:method evaluate ((expr negation))
+            (- (evaluate (negation-expr expr))))
+    (das:method evaluate ((expr addition))
+            (+ (evaluate (addition-left expr))
+               (evaluate (addition-right expr))))
+     (das:method evaluate ((expr number))
+            expr)
+
+     (evaluate (addition 5 (negation -5)))
 
 ```
-dasgen/
-      L-- src/   
-             L  das-exports.lisp        export jscl functionailty   
-             |      
-             L  das-structure.lisp      das!structure source
-             | 
-             L  das-type.lisp           dasgen simple types system
-             |
-             L  das-generic.lisp        das!generic, das!method source
- 
-      L------ exapmles/ 
-                      L das-examples.lisp 
-      L-- lib/
-            L  dasgeneric.js            compiled package. use (resource-loader :script "dasgeneric.js")
-                                        for load the package into jscl environment (Moren chrome extension or Moren Electron)
+
+## das:def-type
+
+*das:def-type* :*type* :*predicate* 
+
+*type* ::= `symbol`
+
+*predicate* ::= 'symbol` | `function`
+
+```lisp
+(defstruct (stub (:type vector) :named) (fn (error "undef function") :type function))
+(das:def-type :type 'stub :predicate (lambda (x) (stub-p x)))
+
+(das:generic anything (x y))
+(das:method anything (x y) (format t "Don't know what do this tool: ~a  with this object: ~a~%" x y))
+(das:method anything ((than stub) (with vector)) (ffi:call (with "forEach") (stub-fn than)))
+(das:method anything ((than function) (with vector)) (ffi:call (with "forEach") than))
+
+(setq heap (make-array '(5) :initial-element (ffi:ref "undefined")))
+(setq ps (make-stub :fn (lambda (x) (format t "And what do with it ~a?~%" x))))
+(anything ps heap)
+(anything t (list 1 2 3))
+
+(das:method anything ((than function) (with list))
+  (let (result)
+      (dolist (it with (reverse result)) (push (funcall than it) result))))
+
+(anything 'integerp (list 1 2 3 4))
+
+```
+
+## das:the-type-of
+
+*das:the-type-of* `object`
+
+```lisp
+(das:the-type-of 1) => t
+(das:the-type-of nil) => nil
+(das:the-type-of ps) => stub
+```
+
+## das:the-typep
+
+*das:the-typep* `object` `type-name`
+
+*object* ::= `<any entitie>`
+
+*type-name* ::= `symbol`
+
+```lisp
+(das:the-typep (list 1 2 3) 'list) => t
+(das:the-typep ps 'stub) => t
+(das:def-type :name 'list-triple 
+              :predicate (lambda (x) 
+                           (when  (listp x) (eq (length x) 3))))
+(das:the-typep '(1 2 3) 'list-triple) => t
 ```
 
 ## Compilation
 
-Host compilation: 
-- not tested
-
-Chrome extension:
-- not tested
-
-Electron: 
-- The sequence of loading source files for the Moren environment:
-
 ```lisp
- (load "das-exports.lisp" "das-structure.lisp" "das-types.lisp" "das-generic.lisp")
-```
- or
 
-```lisp
- (btpkg:compile  "das-exports.lisp" "das-structure.lisp" "das-types.lisp" "das-generic.lisp")
-```
+(setq bin (make-array 0 :fillpointer 0)) 
+(load "src/package.lisp" :hook bin)
+(load "src/das-types.lisp" :hook bin)
+(load "src/das-generic.lisp" :hook bin :output "./dasgen.js")
 
-
-## das!structure - implementation def!struct on storage-vector.
+;; further use:  (require "./dasgen.js") or html:<script >
 
 ```
-(das!structure nameop field .... field)
 
-    nameop = name | (name option ... option)
-    option = constructor | (:predicate name) | (:copy name) | (:conc-name name)
-    constructor = (:constructor name) | (:constructor name (arg ... arg))
-    filed = var | (var initform)
-    initform = any legal expression
-    var = symbol name
-```
-### Examples
-
-```
-   (das!structure kik count) 
-   (das!structure kik (count 99))
-   (make-kik) 
-   (make-kik :count 1)
-```
-
-```
-   (das!structure (kik (:constructor kik) (:conc-name what-)) count)
-   (kik) 
-   (kik :count 22)   ;; contructor
-   (what-count *p)   ;; accessor
-   (kik-p *p)        ;; predicat
-   (copy-kik *p)     ;; copier
-```
-
-```
-   (das!structure (kik (:constructor kik (count)) (:conc-name what-)) (count 99))
-   (kik) 
-   (kik 33)
-   (what-count *p)
-   (kik-p *p)
-   (copy-kik *p)
-```
-
-## Simple implementation of 'defgeneric' and 'defmethod'
-
-Macros: 
-- das!generic 
-- das!method
-
-Looks like something this:
-
-```lisp
-   (das!generic msort (vector))
-   (das!method msort ((object vector)) 
-       (funcall ((oget object "sort" "bind") object)))
-
-   (msort (vector 9 2 3 1 2 3 4))
-   ;;=> #(1 2 2 3 3 4 9)
-
-   (das!method msort ((object list)) 
-        (vector-to-list (msort (list-to-vector object))))
-
-   (msort '(1 2 3 9 8 1 2 3))
-   ;;=> (1 1 2 2 3 3 8 9)
-
-   (das!generic msort (vector &optional function))
-
-
-   (das!method msort ((object vector) &optional comparator)  
-         (funcall ((oget object "sort" "bind") object comparator)))
-
-   (msort (vector 9 8 7 1 2))
-   ;;=> #(1 2 7 8 9)
-
-   (msort (vector #\a #\b 9 8 #\c 7 1 2))
-   ;;=> #(1 2 7 8 9 #\a #\b #\c)
-
-   (das!generic compare-slots (x y)) 
-
-   (das!method compare-slots ((x integer)(y integer)) 
-       (cond ((< x y) 1) 
-             ((= x y) 0) 
-             (t -1))) 
-
-   (das!method compare-slots ((x list) (y list)) 
-        (compare-slots (length x) (length y)))
-
-   (msort (vector '(1 2 3) '(1) '(1 2) '(1 2 3)) #'compare-slots)
-   ;;=> #((1 2 3) (1 2 3) (1 2) (1))
-```
-
-### das!generic
-
-```lisp
-   (das!generic gfname (args))
-```
-
-Must be declared before the definition of the method. Optionals :method, :documentation and others not implemented
-
-
-### das!method
-
-das!method function-name  specialized-lambda-list  form*
-=> new-method
-
-function-name::= symbol
-
-specialized-lambda-list::= ({var | (var parameter-specializer-name)}* 
-                            [&optional {var | (var [initform ])}*] 
-                            [&rest var] 
-                            [&key{var | ({var | (keywordvar)} [initform  ])}*]
-
-parameter-specializer: integer | float | character | string 
-                       | list  | consp
-                       | hash-table | vector | symbol | keyword 
-                       | das!structure-name 
-
-```lisp
-    (das!method compare-slots ((x integer) (y integer)) )
-    (das!method compare-slots ((x integer) y ) )
-    (das!method compare-slots ((x list) (y list)) )
-```
-
+### Copyright 2017,2025 @vlad-km
 
 

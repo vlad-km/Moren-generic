@@ -1,0 +1,46 @@
+;;; -*- mode:txt; coding:utf-8  -*-
+
+#|
+
+            /\___/\
+            )     (
+           =\     /=                  
+             )   (                    Copyright © 2017,2025  @vlad-km
+            /     \                   2017, Original https://github.com/vlad-km/dasgen
+            )     (                   2025, Code redesign
+           /       \                  Electron >= electron@21.2.2
+           \       /                  Moren  
+      jgs   \__ __/
+               ))
+              //                      
+             ((
+              \)
+|#
+
+
+           das:generic Performanse note
+                  preliminarily
+
+(das!generic tik (t t t))
+(das!method tik (a b c))
+(das!method tik ((a list) x y) (values :a-list))
+
+(time (dotimes (i 100000) (tik '(1) 2 3)))
+   Execution took 1.333 seconds.
+   Execution took 1.342 seconds.
+   Execution took 1.325 seconds.
+
+(time (dotimes (i 1000) (tik '(1) 2 3)))
+   Execution took 0.016 seconds.
+
+                VS
+
+(defgeneric tak (t t t))
+(defmethod tak (a b c) :gen)
+(defmethod tak ((a list) b c) :list)
+
+(time (dotimes (i 100000) (tak '(1) 2 3)))
+   Execution took 5.329 seconds.
+
+(time (dotimes (i 1000) (tak '(1) 2 3)))
+   Execution took 0.065 seconds.
