@@ -124,7 +124,7 @@
       (integer integerp number)
       (float floatp number)
       (cons consp sequence)
-      ;;(sequence sequencep t)
+      (sequence sequencep t)
       (list listp cons sequence)
       (vector vectorp  sequence)
       (character characterp t)
