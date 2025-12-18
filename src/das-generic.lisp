@@ -18,34 +18,6 @@
 |#
 
 
-;;; all generic's store
-(defvar *das-gfd* nil)
-(setq *das-gfd*  (make-hash-table :test #'equal))
-
-(defun das/store-gfd (name gf)
-    (setf (gethash name *das-gfd*) gf))
-
-(defun das/gf-get-for (name)
-  (let ((g (gethash name *das-gfd*)))
-    (unless g (error "DAS: Generic ~a not found." name))
-    g))
-
-
-;;; DAS GF descriptor
-(defstruct (das-gf (:type vector) :named)
-            name  arglist lambda-len  lambda-mask   mask-len
-            rest-count optional-count  key-count specialite
-            methods )
-
-;;; generic as function
-(defstruct (das-gf-method (:type vector) :named)
-         name lambda-len lambda-mask mask-len
-         lambda-vars rest-count  optional-count  key-count fn primary
-         around before after)
-
-
-(defconstant *das-gf-mask-stop-tokens* '(&rest &optional &key))
-
 ;;; errors
 (defvar *dasgen-meser*)
 (setq *dasgen-meser*
@@ -65,9 +37,38 @@
 (defconstant +specializers-form+ 4)
 (defconstant +method-lambda-list-expected+ 5)
 
-
 (defun das/gener-raise (n-error &rest arguments)
   (apply 'error (push (aref *dasgen-meser* n-error) arguments)))
+
+
+;;; all generic's store
+(defvar *das-gfd* nil)
+(setq *das-gfd*  (make-hash-table :test #'equal))
+
+(defun das/store-gfd (name gf)
+    (setf (gethash name *das-gfd*) gf))
+
+(defun das/gf-get-for (name)
+  (let ((g (gethash name *das-gfd*)))
+    (unless g (das/gener-raise  +generic-not-exists+ name))
+    g))
+
+
+;;; DAS GF descriptor
+(defstruct (das-gf (:type vector) :named)
+            name  arglist lambda-len  lambda-mask   mask-len
+            rest-count optional-count  key-count specialite
+            methods )
+
+;;; generic as function
+(defstruct (das-gf-method (:type vector) :named)
+         name lambda-len lambda-mask mask-len
+         lambda-vars rest-count  optional-count  key-count fn primary
+         around before after)
+
+
+(defconstant *das-gf-mask-stop-tokens* '(&rest &optional &key))
+
 
 (defun das/lambda-counter (lambda-list)
   (let ((count 0))
