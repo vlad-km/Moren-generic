@@ -131,13 +131,13 @@
       (setq count (1+ count)) )
     count))
 
-;;; todo: labels ??
+;;; note: labels -> flet 
 (defun das/gf-find-optional-args (lambda-list)
   (let* ((len (length lambda-list))
          (rest (position '&rest lambda-list))
          (optional  (position '&optional lambda-list))
          (key  (position '&key lambda-list)))
-    (labels ((%counter (pos)
+    (flet ((%counter (pos)
                (cond (pos  (das/gf-optionals-counter (subseq lambda-list (1+ pos) len)))
                      (t 0))))
       (values (%counter rest) (%counter optional) (%counter key)))))
@@ -165,7 +165,6 @@
 ;;; Called from DEF!GENERIC
 ;;; Used das/lambda-mask
 ;;;      das/gf-find-optional-args
-
 (deftype non-empty-list () `(satisfies jscl::true-list-p))
 
 (defun das/gf-create (name lambda-list)
@@ -188,7 +187,6 @@
 
 
 ;;; DAS/GF ROOT METHOD
-
 (defun %every-identity (seq)
   (dolist (elt seq)
     (unless (identity elt)
@@ -212,9 +210,14 @@
                (apply (das-gf-method-fn (gethash method-mask mhd)) args ) ))
       ;; prepare methods and args for invoke call
       ;; get methods table
-      (setq mhd (das-gf-methods gf))
-      (setq args (first vars))
-      (setq argvals (subseq args 0 (das-gf-mask-len gf)))
+      ;;(setq mhd (das-gf-methods gf))
+      ;;(setq args (first vars))
+      ;;(setq argvals (subseq args 0 (das-gf-mask-len gf)))
+
+      (setq mhd (das-gf-methods gf)
+            args (first vars)
+            argvals (subseq args 0 (das-gf-mask-len gf)))
+
       (dolist (mask (das-gf-specialite gf))
         (if (%every-identity (%type-value-compare argvals mask) )
             (return-from das/root-dgf (%invoke-by mask)) )))))
