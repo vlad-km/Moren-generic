@@ -23,7 +23,7 @@
 (setq *dasgen-meser*
       #(
         "DAS: Generic ~a not found."                                                 ;; das/gf-get-for
-        "DAS: Dont recognized expr ~a."                                              ;; das/lambda-counter
+        "DAS: Wrong expr syntax: ~a."                                                ;; das/lambda-counter
         "DAS: Invalid typename ~a."                                                  ;; das/gf-mask-spwc-parser-type
         "DAS: Cant recognize slot ~a."                                               ;; das/lambda-mask
         "DAS: Specializers form ~a not implemented."                                 ;; das/lambda-mask
@@ -132,8 +132,6 @@
     count))
 
 ;;; todo: labels ??
-;;; note: sunseq
-;;; todo: wrong code. lambda-list mb empty
 (defun das/gf-find-optional-args (lambda-list)
   (let* ((len (length lambda-list))
          (rest (position '&rest lambda-list))
@@ -217,47 +215,9 @@
       (setq mhd (das-gf-methods gf))
       (setq args (first vars))
       (setq argvals (subseq args 0 (das-gf-mask-len gf)))
-      ;; search method by mask
       (dolist (mask (das-gf-specialite gf))
         (if (%every-identity (%type-value-compare argvals mask) )
             (return-from das/root-dgf (%invoke-by mask)) )))))
-
-;;; DAS!GENERIC MACRO's
-
-(defmacro das!generic (name (&rest vars))
-  (let ((gf (das/gf-create name vars ))
-        (fname)
-        (fn (intern (symbol-name (gensym (jscl::concat "DGF-" (princ-to-string name)))))) )
-    (setq fname (intern (symbol-name `,name)))
-    `(progn
-       (defun ,fn (&rest args) (das/root-dgf ',fname args))
-       (jscl::fset ',fname (fdefinition ',fn))
-       (das/store-gfd ',fname ',gf)
-       ',fname)
-    ))
-
-
-
-
-
-;;; generic forms:
-;;; i. (generic name (a b c))
-;;; ii. (generic name (a b c)
-;;;        (:method (a b c) :general)
-;;;        (:method ((a list) b c) :first-list)
-;;;        (:method (a (b list) c) :second-list))
-
-(defmacro das!generic (name (&rest vars))
-  (let* ((gf (das/gf-create name vars ))
-        (fname)
-        (fn (intern (symbol-name (gensym (jscl::concat "DGF-" (princ-to-string name)))))) )
-    (setq fname (intern (symbol-name `,name)))
-    `(progn
-       (defun ,fn (&rest args) (das/root-dgf ',fname args))
-       (jscl::fset ',fname (fdefinition ',fn))
-       (das/store-gfd ',fname ',gf)
-       ',fname)
-    ))
 
 
 ;;; check method lambda list
@@ -272,7 +232,7 @@
 ;;; Remove type specializers from required arguments
 ;;; Return prop list with  method lambda list parameters
 
-;;; todo: fix the error message
+
 (defun das/gf-check-lambda  (gf arglist)
   (let ((method-lambda (das/gf-parse-lambda-list arglist)))
     (cond ((or (/= (das-gf-rest-count gf)
@@ -283,27 +243,22 @@
                    (getf method-lambda :key-count))
                (/= (das-gf-mask-len gf)
                    (getf method-lambda :mask-len)))
-           ;; return aproved lambda mask
-           method-lambda)
-          (t
-           ;; raise condition
+           ;; error
            (das/gener-raise  +method-lambda-list-expected+
                              (getf method-lambda :lambda-mask)
                              arglist
                              (das-gf-lambda-mask gf)
-                             (das-gf-arglist gf))))
-    ))
+                             (das-gf-arglist gf)))
+          ;; aprove
+          (t method-lambda))))
 
 
-;;; add new method
-;;;
+
 ;;; Sort function for specialite
-;;; Use:
 ;;;    most specified method mask must be first
 ;;;    in method mask list for clos/gf-root
 ;;; <= ((t integer t) (t integer integer) (t t t))
 ;;; => ((t integer integer) (t integer t) (t t t))
-
 (defun das/sort-method-mask-comparator (x y)
   (let* ((mixt (mapcar (lambda (xx yy) (cons xx yy)) x y ))
          (winx (count-if (lambda (pair) (das/subtypep (car pair) (cdr pair)))
@@ -357,7 +312,7 @@
     ))
 
 
-;;; DAS!METHOD macro
+;;; method macro form
 (defmacro das!method (name (&rest arglist) &rest body)
   (let* ((gfname (intern (symbol-name `,name)))
          (method-lambda (das/gf-check-lambda (das/gf-get-for gfname) arglist))
@@ -369,5 +324,67 @@
       ',method-lambda
       #'(lambda  ,a!list . ,body))
     ) )
+
+
+;;; (%check-inside-generic-methods '((:method (a b) t) (:meth nil) (:method (a b c))) '(a b c))
+;;; => nil
+;;; (%check-inside-generic-methods '((:method (a b c) t) (:method (a b c) nil) (:method (a b c) (lambda nil nil))) '(a b c))
+;;; => t
+(defun %check-generic-methods-forms (methods-list generic-args-list)
+  ;;(print (list :check methods-list generic-args-list))
+  (let ((length-ga (list-length generic-args-list))
+        (min-prop-len 2)
+        (mask))
+    (dolist (it methods-list)
+      ;;(print (list :it it))
+      ;;(print (list :I  min-prop-len (list-length it) :cond (jscl::proper-list-p it)))
+      ;;(print (list :II (eq (car it) :method)))
+      ;;(print (list :III (length (cadr it)) :cond  (eq (list-length (cadr it)) length-ga)))
+      (when (and
+             ;; check what:
+             ;; i. :method form is proper list (without conses)
+             (jscl::proper-list-p it)
+             ;; ii. :method firstly element
+             (eq (car it) :method)
+             ;; iii. :method args list eq :generic arg list
+             (typep (cadr it) 'list)
+             (jscl::proper-list-p (cadr it))
+             (eq (list-length (cadr it)) length-ga))
+        ;; minimal method declaration: (:method (a b c) [nil]) length range [2...n]
+        ;; first element: eq `:method
+        ;; second element: i. list  ii. length eq generic-args-list
+        ;; method body not checked
+        (push t mask)))
+    ;;(print (list :mask mask))
+    (if mask
+        (cond ((eq (list-length mask) (length methods-list)) t)
+              (t nil)))))
+
+;;; generic forms:
+;;; i. (generic name (a b c))
+;;; ii. (generic name (a b c)
+;;;        (:method (a b c) :general)
+;;;        (:method ((a list) b c) :first-list)
+;;;        (:method (a (b list) c) :second-list))
+(defmacro das!generic (name (&rest vars) &rest others)
+  (let* ((gf (das/gf-create name vars ))
+         ;;(vars-length (list-length vars))
+         (methods-p (when others (%check-generic-methods-forms others vars)))
+         (methods)
+         (generic-func-name (intern (symbol-name name))))
+    (if (and (null methods-p) others)
+        (das/gener-raise +wrong-expression+ others))
+    (jscl::fset generic-func-name
+                (fdefinition (lambda (&rest args) (das/root-dgf generic-func-name args))))
+    (das/store-gfd generic-func-name gf)
+    (when methods-p
+      (setq methods
+            (jscl::with-collect
+                (dolist (it others)
+                  (jscl::collect `(das!method ,name ,(cadr it) ,@(rest (rest it))))))))
+    `(progn
+       ,@methods
+       ',generic-func-name)
+    ))
 
 ;;; EOF
