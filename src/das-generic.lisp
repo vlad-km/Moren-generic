@@ -167,7 +167,12 @@
 ;;; Called from DEF!GENERIC
 ;;; Used das/lambda-mask
 ;;;      das/gf-find-optional-args
+
+(deftype non-empty-list () `(satisfies jscl::true-list-p))
+
 (defun das/gf-create (name lambda-list)
+  (check-type name symbol)
+  (check-type lambda-list non-empty-list)
   (let ((gf))
     (multiple-value-bind (mask lmask vars) (das/lambda-mask lambda-list)
       (multiple-value-bind (rest optional key)
@@ -217,23 +222,43 @@
         (if (%every-identity (%type-value-compare argvals mask) )
             (return-from das/root-dgf (%invoke-by mask)) )))))
 
-;;; DAS!GENERIC MACRO
+;;; DAS!GENERIC MACRO's
 
-;;; todo: fix it (fset & others)
 (defmacro das!generic (name (&rest vars))
   (let ((gf (das/gf-create name vars ))
         (fname)
         (fn (intern (symbol-name (gensym (jscl::concat "DGF-" (princ-to-string name)))))) )
     (setq fname (intern (symbol-name `,name)))
     `(progn
-       ;; Define gf accessor with uniq name DGF-generic-name--bla-bla-bla
        (defun ,fn (&rest args) (das/root-dgf ',fname args))
-       ;; Set function symbol
        (jscl::fset ',fname (fdefinition ',fn))
-       ;; Store descriptor to global table
        (das/store-gfd ',fname ',gf)
        ',fname)
     ))
+
+
+
+
+
+;;; generic forms:
+;;; i. (generic name (a b c))
+;;; ii. (generic name (a b c)
+;;;        (:method (a b c) :general)
+;;;        (:method ((a list) b c) :first-list)
+;;;        (:method (a (b list) c) :second-list))
+
+(defmacro das!generic (name (&rest vars))
+  (let* ((gf (das/gf-create name vars ))
+        (fname)
+        (fn (intern (symbol-name (gensym (jscl::concat "DGF-" (princ-to-string name)))))) )
+    (setq fname (intern (symbol-name `,name)))
+    `(progn
+       (defun ,fn (&rest args) (das/root-dgf ',fname args))
+       (jscl::fset ',fname (fdefinition ',fn))
+       (das/store-gfd ',fname ',gf)
+       ',fname)
+    ))
+
 
 ;;; check method lambda list
 ;;; only for DEF!METHOD
@@ -321,12 +346,10 @@
             ;; This is a unique mask
             ;; Remember it in the specialite list and sort the list
             (push (getf method-lambda :lambda-mask) (das-gf-specialite gf))
-            ;; bug: (set-das-gf-specialite gf (das/gf-sort-specialite (das-gf-specialite gf)))
             (setf (das-gf-specialite gf) (das/gf-sort-specialite (das-gf-specialite gf)))
             ) ))
     ;; In this place to compile the method body
     ;; For connecting call-next environment
-    ;; bug: (set-das-gf-method-fn md method-body)
     (setf (das-gf-method-fn md) method-body)
     ;; Store method descriptor
     ;; key = hash (mask)
