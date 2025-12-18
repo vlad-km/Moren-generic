@@ -199,13 +199,13 @@
       (push (the-typep (nth idx vals) (nth idx mask)) res ))
     (reverse res)))
 
-;;; note: fix it
+;;; note: fix labels -> flet
 (defun das/root-dgf (gfname &rest vars)
   (let* ((gf (das/gf-get-for gfname))
          (mhd)
          (args)
          (argvals))
-    (labels ((%invoke-by (method-mask)
+    (flet ((%invoke-by (method-mask)
                ;; todo: catch error with gethash nil
                (apply (das-gf-method-fn (gethash method-mask mhd)) args ) ))
       ;; prepare methods and args for invoke call
