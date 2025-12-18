@@ -206,7 +206,7 @@
          (args)
          (argvals))
     (flet ((%invoke-by (method-mask)
-               ;; todo: catch error with gethash nil
+               ;; note: catch error with gethash nil? now don't know
                (apply (das-gf-method-fn (gethash method-mask mhd)) args ) ))
       ;; prepare methods and args for invoke call
       ;; get methods table
