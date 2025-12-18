@@ -18,6 +18,8 @@
 |#
 
 
+(in-package :das)
+
 ;;; errors
 (defvar *dasgen-meser*)
 (setq *dasgen-meser*
@@ -131,13 +133,13 @@
       (setq count (1+ count)) )
     count))
 
-;;; todo: labels ??
+;;; note: labels -> flet 
 (defun das/gf-find-optional-args (lambda-list)
   (let* ((len (length lambda-list))
          (rest (position '&rest lambda-list))
          (optional  (position '&optional lambda-list))
          (key  (position '&key lambda-list)))
-    (labels ((%counter (pos)
+    (flet ((%counter (pos)
                (cond (pos  (das/gf-optionals-counter (subseq lambda-list (1+ pos) len)))
                      (t 0))))
       (values (%counter rest) (%counter optional) (%counter key)))))
@@ -165,7 +167,6 @@
 ;;; Called from DEF!GENERIC
 ;;; Used das/lambda-mask
 ;;;      das/gf-find-optional-args
-
 (deftype non-empty-list () `(satisfies jscl::true-list-p))
 
 (defun das/gf-create (name lambda-list)
@@ -188,7 +189,6 @@
 
 
 ;;; DAS/GF ROOT METHOD
-
 (defun %every-identity (seq)
   (dolist (elt seq)
     (unless (identity elt)
@@ -201,38 +201,36 @@
       (push (the-typep (nth idx vals) (nth idx mask)) res ))
     (reverse res)))
 
-;;; note: fix it
+;;; note: fix labels -> flet
 (defun das/root-dgf (gfname &rest vars)
   (let* ((gf (das/gf-get-for gfname))
          (mhd)
          (args)
          (argvals))
-    (labels ((%invoke-by (method-mask)
-               ;; todo: catch error with gethash nil
+    (flet ((%invoke-by (method-mask)
+               ;; note: catch error with gethash nil? now don't know
                (apply (das-gf-method-fn (gethash method-mask mhd)) args ) ))
       ;; prepare methods and args for invoke call
       ;; get methods table
-      (setq mhd (das-gf-methods gf))
-      (setq args (first vars))
-      (setq argvals (subseq args 0 (das-gf-mask-len gf)))
+      ;;(setq mhd (das-gf-methods gf))
+      ;;(setq args (first vars))
+      ;;(setq argvals (subseq args 0 (das-gf-mask-len gf)))
+
+      (setq mhd (das-gf-methods gf)
+            args (first vars)
+            argvals (subseq args 0 (das-gf-mask-len gf)))
+
       (dolist (mask (das-gf-specialite gf))
         (if (%every-identity (%type-value-compare argvals mask) )
             (return-from das/root-dgf (%invoke-by mask)) )))))
 
 
-;;; check method lambda list
-;;; only for DEF!METHOD
-;;;
 ;;; lambda check list
 ;;;    1 - count required lambda arguments
 ;;;    2 - count optional lambda arguments
 ;;;    3 - count rest arguments
 ;;;    4 - count key arguments
-;;;
-;;; Remove type specializers from required arguments
 ;;; Return prop list with  method lambda list parameters
-
-
 (defun das/gf-check-lambda  (gf arglist)
   (let ((method-lambda (das/gf-parse-lambda-list arglist)))
     (cond ((or (/= (das-gf-rest-count gf)
@@ -269,8 +267,6 @@
           ((= winx winy) 0)
           (t -1))))
 
-
-;;; todo: fix it
 (defun das/gf-sort-specialite (lst)
   (let* ((jarray (jscl::list-to-vector lst))
          (sort (lambda (fn)
@@ -303,17 +299,14 @@
             (push (getf method-lambda :lambda-mask) (das-gf-specialite gf))
             (setf (das-gf-specialite gf) (das/gf-sort-specialite (das-gf-specialite gf)))
             ) ))
-    ;; In this place to compile the method body
-    ;; For connecting call-next environment
     (setf (das-gf-method-fn md) method-body)
-    ;; Store method descriptor
-    ;; key = hash (mask)
     (setf (gethash hash  mht) md )
     ))
 
 
 ;;; method macro form
-(defmacro das!method (name (&rest arglist) &rest body)
+(export '(das::method))
+(defmacro method (name (&rest arglist) &rest body)
   (let* ((gfname (intern (symbol-name `,name)))
          (method-lambda (das/gf-check-lambda (das/gf-get-for gfname) arglist))
          (arg-list)
@@ -331,15 +324,10 @@
 ;;; (%check-inside-generic-methods '((:method (a b c) t) (:method (a b c) nil) (:method (a b c) (lambda nil nil))) '(a b c))
 ;;; => t
 (defun %check-generic-methods-forms (methods-list generic-args-list)
-  ;;(print (list :check methods-list generic-args-list))
   (let ((length-ga (list-length generic-args-list))
         (min-prop-len 2)
         (mask))
     (dolist (it methods-list)
-      ;;(print (list :it it))
-      ;;(print (list :I  min-prop-len (list-length it) :cond (jscl::proper-list-p it)))
-      ;;(print (list :II (eq (car it) :method)))
-      ;;(print (list :III (length (cadr it)) :cond  (eq (list-length (cadr it)) length-ga)))
       (when (and
              ;; check what:
              ;; i. :method form is proper list (without conses)
@@ -355,7 +343,6 @@
         ;; second element: i. list  ii. length eq generic-args-list
         ;; method body not checked
         (push t mask)))
-    ;;(print (list :mask mask))
     (if mask
         (cond ((eq (list-length mask) (length methods-list)) t)
               (t nil)))))
@@ -366,9 +353,10 @@
 ;;;        (:method (a b c) :general)
 ;;;        (:method ((a list) b c) :first-list)
 ;;;        (:method (a (b list) c) :second-list))
-(defmacro das!generic (name (&rest vars) &rest others)
+(export '(das::generic))
+
+(defmacro generic (name (&rest vars) &rest others)
   (let* ((gf (das/gf-create name vars ))
-         ;;(vars-length (list-length vars))
          (methods-p (when others (%check-generic-methods-forms others vars)))
          (methods)
          (generic-func-name (intern (symbol-name name))))
@@ -386,5 +374,8 @@
        ,@methods
        ',generic-func-name)
     ))
+
+
+(in-package :cl-user)
 
 ;;; EOF
