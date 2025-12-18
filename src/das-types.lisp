@@ -17,7 +17,6 @@
               \)
 |#
 
-;;; DAS TYPES.  Very simple types system
 
 #|            Performanse note
               preliminarily
@@ -39,6 +38,8 @@
    Execution took 5.329 seconds.
 
 |#
+
+(in-package :das)
 
 ;;; TYpe definition structure
 (defstruct (das-typedef (:type vector) :named) type supertype predicate class)
@@ -74,7 +75,7 @@
 ;;;      (def-type 'name (lambda (x) (structure-p x)))
 ;;;      or
 ;;;      (def-type 'name 'predicate-fn)
-(export '(def-type))
+(export '(das::def-type))
 (defun def-type (&key (type) (predicate nil predicate-p) (supertype nil super-p))
   (when (or (null type) (null predicate-p))
     (das/typer-raise +wrong-deftype-form+  type predicate))
@@ -149,6 +150,8 @@
        *das-basic-types*))
 
 ;;; tiny type-of
+(export '(das::the-type-of))
+
 (defun the-type-of (value)
   (unless value
     (return-from the-type-of 'null))
@@ -174,7 +177,7 @@
 (defun the-class-of (type)
   (das-typedef-class (find-typedef type) ))
 
-(export '(the-typep))
+(export '(das::the-typep))
 ;;; tiny typep
 (defun the-typep (value type) 
   (when (eq type nil)(return-from the-typep nil))
@@ -199,5 +202,6 @@
 (defun das/subtypep (type1 type2)
   (find type2 (%build-inherit-types type1)))
 
+(in-package :cl-user)
 
 ;;;EOF
