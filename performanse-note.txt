@@ -33,6 +33,15 @@
 (time (dotimes (i 1000) (tik '(1) 2 3)))
    Execution took 0.016 seconds.
 
+Update `types`
+   Execution took 1.247 seconds.
+   Execution took 1.23 seconds.
+   Execution took 1.24 seconds.
+
+   Execution took 0.013 seconds.
+   Execution took 0.013 seconds.
+   Execution took 0.014 seconds.
+
                 VS
 
 (defgeneric tak (t t t))
@@ -44,3 +53,4 @@
 
 (time (dotimes (i 1000) (tak '(1) 2 3)))
    Execution took 0.065 seconds.
+
