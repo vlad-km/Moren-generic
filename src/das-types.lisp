@@ -89,6 +89,37 @@
                             :supertype supertype
                             :class class))))
 
+;;; DAS definition of the generic type
+;;;
+;;; (def-type type predicate &optional supertype)
+;;; where:
+;;;     type:= symbol
+;;;     predicate:= lambda-form | symbol-function
+;;;     supertype:= t | other-type
+;;;     other-type:=  one of the existing types
+;;;
+;;; (apply 'def-type args) ;; where args: (symbol lambda-form|symbol-function) | (symbol lambda|symbol-function symbol)
+;;;
+;;; - any structures. structure must be defined as :named. i.e. (defstruct (ship (:type vector) :named) name deadweight))
+;;; - any entities, why there have own's predicate
+;;;      (def-type 'name (lambda (x) (structure-p x)))
+;;;      or
+;;;      (def-type 'name #'structure-p)
+
+(export '(das::def-type))
+(defun def-type (type predicate &optional supertype)
+  (when (or (null type) (null predicate))
+    (das/typer-raise +wrong-deftype-form+  type predicate))
+  (check-type type symbol)
+  (check-type predicate function)
+  (when supertype (check-type supertype symbol))
+  (setf (gethash (car typedef) *das-types*)
+        (make-das-typedef :type type
+                          :predicate predicate
+                          :supertype (if supertype supertype t))))
+
+
+
 ;;; Find deftype for symbol type
 (defun das/find-typedef (type)
   (let ((ok (gethash type *das-types*)))
@@ -120,25 +151,25 @@
 ;;; tiny base-types
 (let ()
   (defparameter *das-basic-types*
-    '((hash-table hash-table-p t)
-      (number numberp t)
-      (integer integerp number)
-      (float floatp number)
-      (cons consp sequence)
-      (sequence sequencep t)
-      (list listp cons sequence)
-      (vector vectorp  sequence)
-      (character characterp t)
-      (symbol symbolp t)
-      (keyword keywordp symbol)
-      (function functionp t)
-      (array arrayp t)
-      (string stringp vector)
-      (atom atom )
-      (das das/structure-pred t)
-      (null null list)
-      (t atom)
-      (nil atom null) ))
+    '((hash-table         hash-table-p     t)
+      (number             numberp          t)
+      (integer            integerp         number)
+      (float              floatp           number)
+      (cons               consp            sequence)
+      (sequence           sequencep        t)
+      (list               listp            cons      sequence)
+      (vector             vectorp          sequence)
+      (character          characterp       t)
+      (symbol             symbolp          t)
+      (keyword            keywordp         symbol)
+      (function           functionp        t)
+      (array              arrayp           t)
+      (string             stringp          vector)
+      (atom               atom )
+      (null               null             list)
+      (t                  atom)
+      (nil                atom             null)
+      ))
 
   (map 'nil
        (lambda (typedef)
@@ -199,8 +230,16 @@
 (defun %build-inherit-types (for)
   (%das-inherit-types (das-typedef-supertype (das/find-typedef for))))
 
+#+nil
 (defun das/subtypep (type1 type2)
   (find type2 (%build-inherit-types type1)))
+
+(defun das/subtypep (type1 type2)
+  (let* ((s  (%das-inherit-types (das-typedef-supertype (das/find-typedef type1))))
+        (f  (find type2 s)))
+    (format t "subtype: t1:~a  t2:~a~%supertype: ~a~%result := ~a~%" type1 type2 s f)
+    f))
+
 
 (in-package :cl-user)
 
