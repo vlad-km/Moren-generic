@@ -237,7 +237,7 @@
 (defun das/subtypep (type1 type2)
   (let* ((s  (%das-inherit-types (das-typedef-supertype (das/find-typedef type1))))
         (f  (find type2 s)))
-    (format t "subtype: t1:~a  t2:~a~%supertype: ~a~%result := ~a~%" type1 type2 s f)
+    ;;(format t "subtype: t1:~a  t2:~a~%supertype: ~a~%result := ~a~%" type1 type2 s f)
     f))
 
 
