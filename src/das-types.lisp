@@ -52,42 +52,23 @@
 (defvar *dasgen-typer*)
 (setq *dasgen-typer*
       #(
-        "DAS: wrong `def-type` form (~a ~a).~%Expected two arguments minimum." ;; def-type
-        "DAS: type-def ~a not exists."                                         ;; das/find-typedef
-        "DAS: wtf a  ~a ?"                                                     ;; the-type-of
-        "DAS: wrong type-def :predicate for ~a, `function` expected."          ;; the-typep
-        "DAS: invalid type ~a, `symbol` expected"                              ;; 
+        "DAS: wrong `def-type` form (~a ~a).~%Expected two arguments minimum." ;; 0 def-type
+        "DAS: type-def ~a not exists."                                         ;; 1 das/find-typedef
+        "DAS: wtf a  form `~a` ?"                                              ;; 2 the-type-of
+        "DAS: wrong def-type :predicate for ~a, `function` expected."          ;; 3 def-type
+        "DAS: invalid type ~a, `symbol` expected"                              ;; 4 the-typep
+        "DAS: wrong `predicate` form `~a`. Expected `symbol`|`function`"       ;; 5 def-type
         ))
 
-(defconstant +wrong-deftype-form+ 0)  ;; def-type
-(defconstant +typedef-not-exists+ 1) ;; find-typedef
-(defconstant +wtf+ 2) ;; the-type-of
-(defconstant +function-expected+ 3) ;; the-typep
+(defconstant +wrong-deftype-form+ 0)    ;; def-type
+(defconstant +typedef-not-exists+ 1)    ;; find-typedef
+(defconstant +wtf+ 2)                   ;; the-type-of
+(defconstant +function-expected+ 3)     ;; the-typep
 (defconstant +symbol-expected+ 4)
+(defconstant +wrong-predicate-form+ 5)  ;; def-type
 
 (defun das/typer-raise (n-error &rest arguments)
   (apply 'error (push (aref *dasgen-typer* n-error) arguments)))
-
-;;; definition of the generic type
-;;;
-;;; - any structures. structure must be defined as :named. i.e. (defstruct (ship (:type vector) :named) name deadweight))
-;;; - any entities, why there have own's predicate
-;;;      (def-type 'name (lambda (x) (structure-p x)))
-;;;      or
-;;;      (def-type 'name 'predicate-fn)
-(export '(das::def-type))
-(defun def-type (&key (type) (predicate nil predicate-p) (supertype nil super-p))
-  (when (or (null type) (null predicate-p))
-    (das/typer-raise +wrong-deftype-form+  type predicate))
-  (let ()
-    (check-type type symbol)
-    (check-type predicate function)
-    (when supertype (check-type supertype symbol))
-    (setf (gethash (car typedef) *das-types*)
-          (make-das-typedef :type type
-                            :predicate predicate
-                            :supertype supertype
-                            :class class))))
 
 ;;; DAS definition of the generic type
 ;;;
@@ -96,29 +77,31 @@
 ;;;     type:= symbol
 ;;;     predicate:= lambda-form | symbol-function
 ;;;     supertype:= t | other-type
-;;;     other-type:=  one of the existing types
+;;;     other-type:=  `symbol` - one of the existing types
 ;;;
-;;; (apply 'def-type args) ;; where args: (symbol lambda-form|symbol-function) | (symbol lambda|symbol-function symbol)
+;;; (apply 'def-type args) ;; where args:  (symbol lambda|symbol-function)
 ;;;
 ;;; - any structures. structure must be defined as :named. i.e. (defstruct (ship (:type vector) :named) name deadweight))
-;;; - any entities, why there have own's predicate
+;;; - any entities, why there have own's predicate:
 ;;;      (def-type 'name (lambda (x) (structure-p x)))
-;;;      or
-;;;      (def-type 'name #'structure-p)
-
+;;;      or (def-type 'name #'structure-p)
+;;;      or (def-type 'name 'structure-p)
 (export '(das::def-type))
 (defun def-type (type predicate &optional supertype)
   (when (or (null type) (null predicate))
     (das/typer-raise +wrong-deftype-form+  type predicate))
-  (check-type type symbol)
-  (check-type predicate function)
+  (typecase type (symbol t) (t (das/typer-raise +symbol-expected+ type)))
+  (typcase predicate
+           (function t)
+           (symbol
+            (if (symbol-function predicate) t
+                (das/typer-raise +wrong-predicate-form+ predicate)))
+           (otherwise (das/typer-raise +wrong-predicate-form+ predicate)))
   (when supertype (check-type supertype symbol))
-  (setf (gethash (car typedef) *das-types*)
+  (setf (gethash (car type) *das-types*)
         (make-das-typedef :type type
                           :predicate predicate
                           :supertype (if supertype supertype t))))
-
-
 
 ;;; Find deftype for symbol type
 (defun das/find-typedef (type)
@@ -149,6 +132,7 @@
 ;;;
 
 ;;; tiny base-types
+;;; bug: `string`
 (let ()
   (defparameter *das-basic-types*
     '((hash-table         hash-table-p     t)
@@ -183,6 +167,11 @@
 ;;; tiny type-of
 (export '(das::the-type-of))
 
+;;; note: todo: sequence
+;;;             standard-object
+;;;             array
+;;;
+;;; bug:
 (defun the-type-of (value)
   (unless value
     (return-from the-type-of 'null))
@@ -205,11 +194,13 @@
     (t (das/typer-raise +wtf+ value)) ))
 
 ;;; class-of
+;;; note: todo: what class?
 (defun the-class-of (type)
   (das-typedef-class (find-typedef type) ))
 
 (export '(das::the-typep))
 ;;; tiny typep
+;;; note: todo:
 (defun the-typep (value type) 
   (when (eq type nil)(return-from the-typep nil))
   (when (eq type t)  (return-from the-typep t))
@@ -234,12 +225,12 @@
 (defun das/subtypep (type1 type2)
   (find type2 (%build-inherit-types type1)))
 
+;;; note: todo:
 (defun das/subtypep (type1 type2)
   (let* ((s  (%das-inherit-types (das-typedef-supertype (das/find-typedef type1))))
         (f  (find type2 s)))
     ;;(format t "subtype: t1:~a  t2:~a~%supertype: ~a~%result := ~a~%" type1 type2 s f)
     f))
-
 
 (in-package :cl-user)
 
