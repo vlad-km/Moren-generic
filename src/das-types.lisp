@@ -52,12 +52,13 @@
 (defvar *dasgen-typer*)
 (setq *dasgen-typer*
       #(
-        "DAS: wrong `def-type` form (~a ~a).~%Expected two arguments minimum." ;; 0 def-type
-        "DAS: type-def ~a not exists."                                         ;; 1 das/find-typedef
-        "DAS: wtf a  form `~a` ?"                                              ;; 2 the-type-of
-        "DAS: wrong def-type :predicate for ~a, `function` expected."          ;; 3 def-type
-        "DAS: invalid type ~a, `symbol` expected"                              ;; 4 the-typep
-        "DAS: wrong `predicate` form `~a`. Expected `symbol`|`function`"       ;; 5 def-type
+        "DAS: wrong `def-type` form (~a ~a).Expected two arguments minimum." ;; 0 def-type
+        "DAS: type definition ~a not exists."                                ;; 1 das/find-typedef
+        "DAS: wtf a  form `~a` ?"                                            ;; 2 the-type-of
+        "DAS: wrong `predicate` form  ~a. Expected: `function` | `symbol`."  ;; 3 def-type
+        "DAS: invalid type ~a, `symbol` expected."                           ;; 4 the-typep
+        "DAS: wrong `predicate` form `~a`. Expected: `symbol`|`function`."   ;; 5 def-type
+        "DAS: wrong `supertype` form `~a`. Expected: `symbol`."              ;; 6 def-type
         ))
 
 (defconstant +wrong-deftype-form+ 0)    ;; def-type
@@ -66,6 +67,7 @@
 (defconstant +function-expected+ 3)     ;; the-typep
 (defconstant +symbol-expected+ 4)
 (defconstant +wrong-predicate-form+ 5)  ;; def-type
+(defconstant +wrong-supertype+ 6)       ;; def-type
 
 (defun das/typer-raise (n-error &rest arguments)
   (apply 'error (push (aref *dasgen-typer* n-error) arguments)))
@@ -91,17 +93,17 @@
   (when (or (null type) (null predicate))
     (das/typer-raise +wrong-deftype-form+  type predicate))
   (typecase type (symbol t) (t (das/typer-raise +symbol-expected+ type)))
-  (typcase predicate
-           (function t)
-           (symbol
-            (if (symbol-function predicate) t
-                (das/typer-raise +wrong-predicate-form+ predicate)))
-           (otherwise (das/typer-raise +wrong-predicate-form+ predicate)))
-  (when supertype (check-type supertype symbol))
-  (setf (gethash (car type) *das-types*)
+  (typecase predicate
+    (function t)
+    (symbol
+     (if (symbol-function predicate) t
+         (das/typer-raise +wrong-predicate-form+ predicate)))
+    (otherwise (das/typer-raise +wrong-predicate-form+ predicate)))
+  (when supertype (das/typer-raise +wrong-supertype+ supertype))
+  (setf (gethash type *das-types*)
         (make-das-typedef :type type
                           :predicate predicate
-                          :supertype (if supertype supertype t))))
+                          :supertype (if supertype supertype nil))))
 
 ;;; Find deftype for symbol type
 (defun das/find-typedef (type)
@@ -112,18 +114,52 @@
 (defun das/standard-object-type-kid (obj)
   (storage-vector-ref obj 0))
 
+
+;;; sequence - abstract class, not part of the CLOS base hierarchy.
+;;;
+;;; predicate - seuence-p
+;;; (das:def-type 'seq 'das:sequence-p)
+;;; (das:generic pip (s))
+;;;      (:method ((a seq))(subseq a 1 3 )))
+;;; (pip #(0 1 2 3 4)) => #(1 2)
+;;; (pip '(0 1 2 3 4)) => (1 2)
+;;; (pip "01234") => "12"
+(export '(das:sequence-p))
+(defun sequence-p (x) (jscl::sequence x))
+
+;;; (cons 1 nil) => t
+;;; (cons 1 2) => nil
+;;; (cons 1 (cons 1 nil)) => t
+;;; (cons 1 (cons 1 2)) => nil (1 1 .2)
+(export '(das::true-list-p))
+(defun true-list-p (x) (jscl::true-list-p x))
+
+;;; (das:def-type 'true-list 'das:true-list-p)
+;;; (das:def-type 'dot-pair 'das:dot-pair-p)
+;;; (das:generic pip (s)
+;;;    (:method ((a dot-pair)) :dot)
+;;;    (:method ((a true-list)):true-list))
+;;; (pip (cons 1 2)) => :dot
+;;; (pip (cons 1 (cons 1 nil))) => :true-list
+;;;
+(export '(das::dot-pair-p))
+;;; (cons 1 2) => t
+;;; (cons 1 nil) => nil
+(defun dot-pair-p (x) (not (true-list-p x)))
+
+
 ;;; todo: fix
 ;;; types/classes hierarchy
 ;;;
 ;;; t             atom
 ;;; character      t
 ;;; function       t
-;;; array          t
+;;; array          t 
 ;;; number         t
 ;;; float          number
 ;;; integer        number
 ;;; symbol         t
-;;; vector         array
+;;; vector         sequence
 ;;; string         vector
 ;;; list           sequence
 ;;; cons           list
@@ -139,9 +175,9 @@
       (number             numberp          t)
       (integer            integerp         number)
       (float              floatp           number)
-      (cons               consp            sequence)
-      (sequence           sequencep        t)
-      (list               listp            cons      sequence)
+      (cons               consp            t)
+      (sequence           sequence-p       )
+      (list               true-list-p      sequence)
       (vector             vectorp          sequence)
       (character          characterp       t)
       (symbol             symbolp          t)
