@@ -18,36 +18,36 @@
 |#
 
 
-(das!generic msort (vector))
+(das:generic msort (vector)
+  (:method ((object vector)) (ffi:call (object "sort")))
+  (:method ((object list))
+                     (ffi::[]->list (msort (ffi:list->[] object)))))
 
-(das!method msort ((object vector)) (ffi:call (object "sort")))
 
 (msort (vector 9 2 3 1 2 3 4))
 ;;=> #(1 2 2 3 3 4 9)
 
-(das!method msort ((object list))
-            (ffi::[]->list (msort (ffi:list->[] object))))
-
 (msort '(1 2 3 9 8 1 2 3))
 ;;=> (1 1 2 2 3 3 8 9)
 
-(das!generic msort (vector &optional function))
+;;; msort redefinition
+(das:generic msort (vector &optional function))
 
 
-(das!method msort ((object vector) &optional comparator)
+(das:method msort ((object vector) &optional comparator)
             (ffi:call (object "sort") comparator))
 
 (msort (vector 9 8 7 1 2) (lambda (x y) (- x y)))
 ;;=> #(1 2 7 8 9)
 
-(das!generic compare-slots (x y))
+(das:generic compare-slots (x y))
 
-(das!method compare-slots ((x integer)(y integer))
+(das:method compare-slots ((x integer)(y integer))
             (cond ((< x y) 1)
                   ((= x y) 0)
                   (t -1)))
 
-(das!method compare-slots ((x list) (y list))
+(das:method compare-slots ((x list) (y list))
             (compare-slots (length x) (length y)))
 
 (msort (vector '(1 2 3) '(1) '(1 2) '(1 2 3)) #'compare-slots)
@@ -64,22 +64,17 @@
 ;;; Example from Dmitry Ignatiev @love5an
 
 (defstruct (negation (:constructor negation (expr)) :named (:type vector)) expr)
-(def-type 'negation (lambda (p) (negation-p p)))
+(das:def-type 'negation (lambda (p) (negation-p p)))
 
 (defstruct (addition (:constructor addition (left right)) :named (:type vector)) left right)
-(def-type 'addition (lambda (p) (addition-p p)))
+(das:def-type 'addition (lambda (p) (addition-p p)))
 
-(das!generic evaluate (expr))
-
-(das!method evaluate ((expr negation))
-            (- (evaluate (negation-expr expr))))
-
-(das!method evaluate ((expr addition))
-            (+ (evaluate (addition-left expr))
-               (evaluate (addition-right expr))))
-
-(das!method evaluate ((expr number))
-            expr)
+(das:generic evaluate (expr)
+   (:method evaluate ((expr negation)) (- (evaluate (negation-expr expr))))
+   (:method evaluate ((expr addition))
+               (+ (evaluate (addition-left expr))
+                  (evaluate (addition-right expr))))
+   (:method evaluate ((expr number)) expr))
 
 (evaluate (addition 5 (negation -5)))
 ;; ==> 10
