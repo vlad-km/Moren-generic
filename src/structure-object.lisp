@@ -27,6 +27,8 @@
 ;;; (defstruct (:type list))      2.364 sec
 ;;; (@struct)                     4.966 sec
 
+(in-package :das)
+
 ;;; stucrure without copier/predicate/ it's a pure JS object.
 (defun %das-struct-generator (kind options slots)
   (let* ((constructor (cadr (assoc :constructor options)))
@@ -61,6 +63,11 @@
 ;;;       add-sym: (setprop ({} "add-sym") t)
 ;;;                js: {}.add-sym wrong name
 ;;;                    {}['add-sym'] 
+(export '(das::@structure))
+
+;;; (das:@structure something name tool) => {name: false, tool: false} with get/set accessors (something-name p) (something-tool p)
+;;; or
+;;;  something (name "the This") (tool)  => {name: 'the This', tool: false}
 (defmacro @structure (name-options &rest slots)
   (let* ((name-options (jscl::ensure-list name-options))
          (name (car name-options))
@@ -70,5 +77,6 @@
          ,maker
          ,@accessors))))
 
+(in-package :cl-user)
 
 ;;; EOF
