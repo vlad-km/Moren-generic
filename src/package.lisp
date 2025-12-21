@@ -18,7 +18,7 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   ;; drop old package with (let) & (hash)
-  (when (find-package "DAS") (delete-package "DAS"))
+  ;;(when (find-package "DAS") (delete-package "DAS"))
   (unless (find-package "DAS") (defpackage :das  (:use :cl))))
 
 
