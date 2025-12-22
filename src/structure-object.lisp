@@ -34,7 +34,8 @@
   (let* ((constructor (cadr (assoc :constructor options)))
          (opt-key (cadr (assoc :form options)))
          (key-names (mapcar (lambda (x) (if (consp x) (car x) x)) slots))
-         (obj-keys (mapcar (lambda (x) (let ((y (string-downcase (symbol-name x)))) (list 'list y x))) key-names))
+         ;;(obj-keys (mapcar (lambda (x) (let ((y (string-downcase (symbol-name x)))) (list 'list y x))) key-names))
+         (obj-keys (mapcar (lambda (x) (let ((y (ffi::%nc x))) (list 'list y x))) key-names))
          (option (if opt-key opt-key '&optional))
          (maker)
          (makname (if constructor
@@ -46,10 +47,19 @@
     (unless (jscl::memq option '(&key &optional)) (error "Something went wrong: ~a." options))
     (setq maker
           `(defun ,makname (,option ,@slots)
-             (let (({} (ffi:new)))
+             (lambda (x y) (ffi:with-this self (ffi:setprop (self x) y)))
+             (let* (({} (ffi:new)))
+               (ffi:setprop ({} "__proto__" "__shady") (lambda (x y) (ffi:with-this self (ffi:setprop (self x) y))))
                (dolist (it (list ,@obj-keys)) (ffi:setprop ({} (car it)) (cadr it)))
-               (ffi:setprop ({} "__type__") "structure")
-               (ffi:setprop ({} "__type_name__") (string-downcase (symbol-name ',kind)))
+               (ffi:setprop ({} "_observer") (lambda nil (ffi:with-this self (ffi:obj-list self))))
+               (ffi:setprop ({} "_method") (lambda (name &rest args)
+                                             (ffi:with-this self
+                                               (let ((fn (ffi:getprop self name)))
+                                                 (until fn (error "No such method ~a" name))
+                                                 (apply fn args)))))
+               (ffi:setprop ({} "_make") (lambda (name value) (ffi:with-this self (ffi:setprop (self name) value))))
+               (ffi:setprop ({} "__type__") #xabcd)
+               (ffi:setprop ({} "__type_name__") ',kind)
                {} )))
     (dolist (it obj-keys)
       (setq getter (intern (jscl::concat (symbol-name kind) "-" (symbol-name (caddr it)))))
@@ -58,6 +68,14 @@
                (ffi:setprop (storage ,(cadr it)) value) value)
             q))
     (values maker (reverse q))))
+
+(defun @structure-name-p (p) (if (eq (ffi:getprop p "__type__") #xabcd) (ffi:getprop p "__type_name__")))
+(defun @structure-name (p) (ffi:getprop p "__type_name__"))
+(defun @structure-p (p) (eq (ffi:getprop p "__type__") #xabcd))
+
+
+;;;(@structure (doit (:constructor doit)) name method)
+
 
 ;;; note: for structure slot name's with "-"
 ;;;       add-sym: (setprop ({} "add-sym") t)
@@ -75,7 +93,8 @@
     (multiple-value-bind (maker accessors) (%das-struct-generator name options slots)
       `(progn
          ,maker
-         ,@accessors))))
+         ,@accessors
+         ',name))))
 
 (in-package :cl-user)
 
