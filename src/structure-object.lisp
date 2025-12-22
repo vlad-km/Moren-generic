@@ -29,13 +29,53 @@
 
 (in-package :das)
 
-;;; stucrure without copier/predicate/ it's a pure JS object.
+(defvar *sjo-diagnos+ nil)
+(setq *sjo-diagnos+
+      #(
+        "DAS: wrong type `~a`. `symbol` or `string` expected."
+        "DAS: wrong structure slot `~a` syntax."
+        "DAS: something went wrong: ~a."
+        ))
+
+(defconstant +jo-key-wrong-type+ 0)
+(defconstant +jo-key-wrong-syntax+ 1)
+(defconstant +jo-went-wrong+       2)
+
+(defun %jso-raise-error (num &rest args)
+  (apply 'error (aref *jso-diagnose+ num) args))
+
+;;; valid name types: string & symbol
+;;;       forms: name | "name" | '|Name| or :|Name| | (name) | ("name") | ('|Name|)
+;;;              (name value)
+(defun %expand-structure-slots (slots)
+  (let ((q-base) (q-keys))
+    (dolist (it slots)
+      (typecase it
+        ((cons)
+         (let ((name (car it))
+               (value (cadr it))
+               (cond ((symbolp name) t)
+                     ((stringp name) t)
+                     (t (%jso-raise-error +jo-key-wrong-type+ name)))
+               (push name q)
+               (push value q))))
+        ((symbol string)
+         (push it q)
+         (push nil q))
+        (otherwise (%jso-raise-error +jo-key-wrong-syntax+ it))))
+    (reverse q)))
+
+
+;;; stucrure without copier/predicate/
+;;; structure base: #j:Object
 (defun %das-struct-generator (kind options slots)
   (let* ((constructor (cadr (assoc :constructor options)))
          (opt-key (cadr (assoc :form options)))
-         (key-names (mapcar (lambda (x) (if (consp x) (car x) x)) slots))
+         (proto-keys (cadr (assoc :protp options)))
+         ;;(key-names (mapcar (lambda (x) (if (consp x) (car x) x)) slots))
          ;;(obj-keys (mapcar (lambda (x) (let ((y (string-downcase (symbol-name x)))) (list 'list y x))) key-names))
-         (obj-keys (mapcar (lambda (x) (let ((y (ffi::%nc x))) (list 'list y x))) key-names))
+         ;;(obj-keys (mapcar (lambda (x) (let ((y (ffi::%nc x))) (list 'list y x))) key-names))
+         (obj-keys (%expand-structure-slots slots))
          (option (if opt-key opt-key '&optional))
          (maker)
          (makname (if constructor
@@ -44,20 +84,22 @@
          (getter)
          (position 0)
          (q))
-    (unless (jscl::memq option '(&key &optional)) (error "Something went wrong: ~a." options))
+    (unless (jscl::memq option '(&key &optional)) (%jso-raise-error +jo-went-wrong+ options))
     (setq maker
           `(defun ,makname (,option ,@slots)
-             (lambda (x y) (ffi:with-this self (ffi:setprop (self x) y)))
-             (let* (({} (ffi:new)))
-               (ffi:setprop ({} "__proto__" "__shady") (lambda (x y) (ffi:with-this self (ffi:setprop (self x) y))))
-               (dolist (it (list ,@obj-keys)) (ffi:setprop ({} (car it)) (cadr it)))
-               (ffi:setprop ({} "_observer") (lambda nil (ffi:with-this self (ffi:obj-list self))))
-               (ffi:setprop ({} "_method") (lambda (name &rest args)
-                                             (ffi:with-this self
-                                               (let ((fn (ffi:getprop self name)))
-                                                 (unless fn (error "No such method ~a" name))
-                                                 (apply fn self args)))))
-               (ffi:setprop ({} "_make") (lambda (name value) (ffi:with-this self (ffi:setprop (self name) value))))
+             ;;(lambda (x y) (ffi:with-this self (ffi:setprop (self x) y)))
+             (let* (({} (apply 'ffi:make-obj '`,obj-keys))
+                    (shady-p `,proto-keys))
+               ;;(ffi:setprop ({} "__proto__" "__shady") (lambda (x y) (ffi:with-this self (ffi:setprop (self x) y))))
+               ;;(dolist (it (list ,@obj-keys)) (ffi:setprop ({} (car it)) (cadr it)))
+               (when shady-p
+                 (ffi:setprop ({} "_observer") (lambda nil (ffi:with-this self (ffi:obj-list self))))
+                 (ffi:setprop ({} "_method") (lambda (name &rest args)
+                                               (ffi:with-this self
+                                                 (let ((fn (ffi:getprop self name)))
+                                                   (unless fn (error "No such method ~a" name))
+                                                   (apply fn self args)))))
+                 (ffi:setprop ({} "_make") (lambda (name value) (ffi:with-this self (ffi:setprop (self name) value)))))
                (ffi:setprop ({} "__type__") #xabcd)
                (ffi:setprop ({} "__type_name__") ',kind)
                {} )))
