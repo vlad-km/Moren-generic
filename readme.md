@@ -1,5 +1,15 @@
 # DAS- tiny implementation of CommonLisp Generic Function for Moren environment
 
+
+## Disclaime
+
+-  This Code execute in `zero safety` mode.
+-  Code written in dialect `non-compliant` ANSI Common Lisp
+-  Using 'CLOS` into the  code, will slow it down to its `CLOS level`.
+-  Also, don't overuse `type functions`.
+-  This code is written for use in a `narrow domain`.
+
+
 ## das:generic
 
 *Must be declared before method's definition*
