@@ -56,7 +56,7 @@
                                              (ffi:with-this self
                                                (let ((fn (ffi:getprop self name)))
                                                  (until fn (error "No such method ~a" name))
-                                                 (apply fn args)))))
+                                                 (apply fn self args)))))
                (ffi:setprop ({} "_make") (lambda (name value) (ffi:with-this self (ffi:setprop (self name) value))))
                (ffi:setprop ({} "__type__") #xabcd)
                (ffi:setprop ({} "__type_name__") ',kind)
