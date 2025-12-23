@@ -11,11 +11,7 @@
 
 ## das:generic
 
-*Must be declared before method's definition*
-
-*defgeneric syntax* `:method`, `:documentation` and others, *not implemented*.
-
-*das:generic* ::= *name* *args* *optionals*
+*das:generic* ::= *name* ( *args* *optionals*) ( *methods*)
 
 *name*::= `symbol`
 
@@ -23,11 +19,23 @@
 
 *optionals* ::= `&optional` | `&keyword` | `&rest`
 
+*methods* ::= (:method (*arguments*) *forms*)
+
+*arguments* ::= symbol | (symbol type)
+
 
 ```lisp
    (das:generic name (x y z))
    (das:generic name (x &optional a b c))
    (das:generic name (pip &key x y z))
+   
+   (das:generic name (a b c)
+      (:method (a b c) (list c b a))
+      (:method ((a symbol) b c) (list a (list b c))))
+      
+  (name 1 2 3) => (3 2 1)
+  (name 'tag 2 3) => (tag (3 2))
+  
 ```
 
 ## das:method
