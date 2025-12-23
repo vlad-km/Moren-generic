@@ -105,6 +105,24 @@
                           :predicate predicate
                           :supertype (if supertype supertype nil))))
 
+;;; DAS type tag's
+
+(defconstant +structure-list-type-tag+     #xA000)
+(defconstant +structure-vector-type-tag+   #xA001)
+(defconstant +structure-clos-type-tag+     #xA002)
+(defconstant +structure-object-type-tag+   #xA003)
+(defconstant +structure-das-object-tag+    #xD000)
+(defconstant +hash-table-type-tag+         #xB000)
+(defconstant +mop-class-type-tag+          #xC000)
+(defconstant +mop-instance-type-tag+       #xC001)
+(defconstant +mop-generic-type-tag+        #xC002)
+(defconstant +das-generic-type-tag+        #xD001)
+
+
+(defun set-type-tag (object tag &optional object-type-name)
+  (ffi:setprop (object "__das_type__") tag)
+  (if object-name (ffi:setprop (object "__das_type_name__") object-type-name)))
+
 ;;; Find deftype for symbol type
 (defun das/find-typedef (type)
   (let ((ok (gethash type *das-types*)))
