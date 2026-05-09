@@ -71,7 +71,6 @@
 
 
 ;;; structure without copier
-;;; structure base: #j:Object
 (defun %das-struct-generator (kind options slots)
   (let* ((constructor (cadr (assoc :constructor options)))
          (opt-key (cadr (assoc :form options)))
@@ -93,12 +92,15 @@
              (let* (({} (apply 'ffi:make-obj (list ,@mak-obj-key-val)))
                     (shady-p ,shady-key))
                (when shady-p
+                 ;; (ffi:call ({this} "_observer")) => (("name" value)* ) list of pair `key`:`val` this object
                  (ffi:setprop ({} "_observer") (lambda nil (ffi:with-this self (ffi:obj-list self))))
+                 ;; (ffi:call ({this} "_method") "name" arg ... arg) - call internal  function 
                  (ffi:setprop ({} "_method") (lambda (name &rest args)
                                                (ffi:with-this self
                                                  (let ((fn (ffi:getprop self name)))
                                                    (unless fn (error "No such method ~a" name))
                                                    (apply fn self args)))))
+                 ;; (ffi:call ({this} "_make") "name" <any object>) - create new name: <any object>
                  (ffi:setprop ({} "_make") (lambda (name value) (ffi:with-this self (ffi:setprop (self name) value)))))
                (ffi:setprop ({} "__das_type__") +structure-das-object-tag+)
                (ffi:setprop ({} "__das_type_name__") ',kind)
@@ -112,8 +114,8 @@
                (ffi:setprop ({} ,(cadr it)) value) value)
             q)
       (push `(defun ,predicate ({}) (if (eq (ffi:getprop {} "__das_type__" ) +structure-das-object-tag+)
-                                        (eq (ffi:getprop {} "__das_type_name__") ,predicate)))
-            q)
+                                        (eq (ffi:getprop {} "__das_type_name__") ',kind)))
+            q))
     (values maker (reverse q))))
 
 (defun @structure-name-p (p) (if (eq (ffi:getprop p "__das_type__") +structure-das-object-tag+) (ffi:getprop p "__das_type_name__")))

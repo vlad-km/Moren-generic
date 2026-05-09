@@ -117,6 +117,7 @@
 (defconstant +mop-instance-type-tag+       #xC001)
 (defconstant +mop-generic-type-tag+        #xC002)
 (defconstant +das-generic-type-tag+        #xD001)
+(defconstant +jscl-cons-type-tag+          #xE000)
 
 
 (defun set-type-tag (object tag &optional object-type-name)
@@ -142,8 +143,8 @@
 ;;; (pip #(0 1 2 3 4)) => #(1 2)
 ;;; (pip '(0 1 2 3 4)) => (1 2)
 ;;; (pip "01234") => "12"
-(export '(das:sequence-p))
-(defun sequence-p (x) (jscl::sequence x))
+(export '(das::sequence-p))
+(defun sequence-p (x) (jscl::sequencep x))
 
 ;;; (cons 1 nil) => t
 ;;; (cons 1 2) => nil
